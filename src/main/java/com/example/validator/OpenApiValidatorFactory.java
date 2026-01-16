@@ -2,6 +2,7 @@ package com.example.validator;
 
 import com.atlassian.oai.validator.OpenApiInteractionValidator;
 import com.atlassian.oai.validator.report.LevelResolver;
+import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 
 /**
@@ -79,6 +80,20 @@ public class OpenApiValidatorFactory {
         return OpenApiInteractionValidator
                 .createForSpecificationUrl(specPath)
                 .withLevelResolver(levelResolver)
+                .build();
+    }
+
+    /**
+     * Creates a validator that allows additional properties using the built-in factory method.
+     * This is the simplest approach and is recommended for most use cases.
+     *
+     * @param specPath Path to the OpenAPI specification file
+     * @return OpenApiInteractionValidator configured to allow additional properties
+     */
+    public static OpenApiInteractionValidator createLenientValidatorSimple(String specPath) {
+        return OpenApiInteractionValidator
+                .createForSpecificationUrl(specPath)
+                .withLevelResolver(LevelResolverFactory.withAdditionalPropertiesIgnored())
                 .build();
     }
 
