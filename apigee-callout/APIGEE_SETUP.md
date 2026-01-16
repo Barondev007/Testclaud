@@ -1,0 +1,366 @@
+# Apigee - OpenAPI Validator Java Callout
+
+This guide explains how to use the OpenAPI Validator Java Callout in Apigee to validate requests against an OpenAPI specification, with support for allowing additional properties.
+
+## Features
+
+- **Spec content passed as property** (not from file path)
+- **Thread-safe validator caching** (one validator per unique spec)
+- **Lenient validation** (allows additional properties by default)
+- **Multiple APIs in parallel** (each spec gets its own cached validator)
+
+## Architecture
+
+```
+                    ┌─────────────────────────────────────────┐
+                    │           VALIDATOR_CACHE               │
+                    │  (ConcurrentHashMap - Thread-Safe)      │
+                    ├─────────────────────────────────────────┤
+                    │  "hash-a|true" → Validator A            │
+                    │  "hash-b|true" → Validator B            │
+                    │  "hash-c|false" → Validator C           │
+                    └─────────────────────────────────────────┘
+                                      ▲
+                                      │ getValidator()
+          ┌───────────────────────────┼───────────────────────────┐
+          │                           │                           │
+    ┌─────┴─────┐              ┌─────┴─────┐              ┌─────┴─────┐
+    │  Proxy A  │              │  Proxy B  │              │  Proxy C  │
+    │  Request  │              │  Request  │              │  Request  │
+    └───────────┘              └───────────┘              └───────────┘
+```
+
+## Step 1: Build the JAR
+
+```bash
+cd apigee-callout
+mvn clean package
+```
+
+This creates an uber-JAR with all dependencies:
+```
+target/openapi-validator-apigee-callout-1.0.0.jar
+```
+
+## Step 2: Add JAR to Your Apigee Proxy
+
+### Option A: Using Apigee UI
+
+1. Open your API proxy in Apigee Edge/X console
+2. Go to **Develop** tab
+3. Click **+** next to **Resources**
+4. Select **JAR** and upload `openapi-validator-apigee-callout-1.0.0.jar`
+
+### Option B: Using Proxy Bundle Structure
+
+Place the JAR in your proxy bundle:
+```
+apiproxy/
+├── proxies/
+│   └── default.xml
+├── targets/
+│   └── default.xml
+├── policies/
+│   └── JavaCallout-ValidateRequest.xml
+└── resources/
+    └── java/
+        └── openapi-validator-apigee-callout-1.0.0.jar
+```
+
+## Step 3: Store Your OpenAPI Spec
+
+### Option A: Using KVM (Key Value Map)
+
+1. Create a KVM named `openapi-specs`
+2. Add an entry:
+   - Key: `users-api-spec`
+   - Value: (your OpenAPI spec YAML/JSON content)
+
+### Option B: Using Properties
+
+Store the spec in a property file or environment variable.
+
+### Option C: Using AssignMessage to Set Variable
+
+Create an AssignMessage policy to set the spec content:
+
+```xml
+<!-- AssignMessage-SetSpec.xml -->
+<AssignMessage name="AssignMessage-SetSpec">
+    <AssignVariable>
+        <Name>openapi.spec.content</Name>
+        <Value>
+openapi: 3.0.3
+info:
+  title: Users API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+        </Value>
+    </AssignVariable>
+</AssignMessage>
+```
+
+## Step 4: Create the Java Callout Policy
+
+Create `JavaCallout-ValidateRequest.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<JavaCallout name="JavaCallout-ValidateRequest">
+    <Properties>
+        <!-- Spec content: can be literal or variable reference -->
+        <Property name="specfile">{openapi.spec.content}</Property>
+
+        <!-- Optional: set to "false" to enable strict validation -->
+        <Property name="allow-additional-properties">true</Property>
+    </Properties>
+    <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
+    <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
+</JavaCallout>
+```
+
+### Using KVM for Spec Content
+
+If using KVM, first retrieve the spec with KeyValueMapOperations:
+
+```xml
+<!-- KVM-GetSpec.xml -->
+<KeyValueMapOperations name="KVM-GetSpec" mapIdentifier="openapi-specs">
+    <Scope>environment</Scope>
+    <Get assignTo="openapi.spec.content">
+        <Key>
+            <Parameter>users-api-spec</Parameter>
+        </Key>
+    </Get>
+</KeyValueMapOperations>
+```
+
+Then reference the variable in the Java Callout:
+```xml
+<Property name="specfile">{openapi.spec.content}</Property>
+```
+
+## Step 5: Create Error Handling Policy
+
+Create `RaiseFault-ValidationError.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault name="RaiseFault-ValidationError">
+    <FaultResponse>
+        <Set>
+            <StatusCode>400</StatusCode>
+            <ReasonPhrase>Bad Request</ReasonPhrase>
+            <Payload contentType="application/json">
+{
+    "error": "Validation Failed",
+    "message": "{openapi.validation.error}"
+}
+            </Payload>
+        </Set>
+    </FaultResponse>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</RaiseFault>
+```
+
+## Step 6: Configure Proxy Flow
+
+Update your proxy endpoint (`proxies/default.xml`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ProxyEndpoint name="default">
+    <PreFlow name="PreFlow">
+        <Request>
+            <!-- Step 1: Get spec from KVM (if using KVM) -->
+            <Step>
+                <Name>KVM-GetSpec</Name>
+            </Step>
+
+            <!-- Step 2: Validate request against OpenAPI spec -->
+            <Step>
+                <Name>JavaCallout-ValidateRequest</Name>
+            </Step>
+
+            <!-- Step 3: Handle validation errors -->
+            <Step>
+                <Name>RaiseFault-ValidationError</Name>
+                <Condition>openapi.validation.failed = "true"</Condition>
+            </Step>
+        </Request>
+    </PreFlow>
+
+    <HTTPProxyConnection>
+        <BasePath>/v1/users</BasePath>
+        <VirtualHost>secure</VirtualHost>
+    </HTTPProxyConnection>
+
+    <RouteRule name="default">
+        <TargetEndpoint>default</TargetEndpoint>
+    </RouteRule>
+</ProxyEndpoint>
+```
+
+## Step 7: Flow Diagram
+
+```
+┌─────────────────────┐
+│   Incoming Request  │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│    KVM-GetSpec      │  ← Get spec content from KVM
+│  (if using KVM)     │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│   JavaCallout       │  ← Validate request
+│  ValidateRequest    │     (uses cached validator)
+└──────────┬──────────┘
+           │
+     ┌─────┴─────┐
+     │           │
+  SUCCESS    validation.failed="true"
+     │           │
+     ▼           ▼
+┌─────────┐  ┌─────────────┐
+│ Continue│  │ RaiseFault  │
+│ to      │  │ (400 Error) │
+│ Target  │  └─────────────┘
+└─────────┘
+```
+
+## Step 8: Deploy and Test
+
+### Deploy the Proxy
+
+```bash
+# Using Apigee CLI (apigeecli)
+apigeecli apis create bundle -f apiproxy -n my-api-proxy
+
+# Or using Maven
+mvn install -Ptest -Dorg=your-org -Denv=test
+```
+
+### Test with Additional Properties (should PASS):
+
+```bash
+curl -X POST https://your-org-test.apigee.net/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "extraField": "this is allowed"
+  }'
+```
+
+### Test with Missing Required Field (should FAIL):
+
+```bash
+curl -X POST https://your-org-test.apigee.net/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe"}'
+```
+
+Expected response:
+```json
+{
+    "error": "Validation Failed",
+    "message": "[validation.request.body.schema.required] Object has missing required properties ([\"email\"])"
+}
+```
+
+## Configuration Reference
+
+### Java Callout Properties
+
+| Property | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `specfile` | Yes | - | OpenAPI spec content (YAML or JSON). Can be literal or variable reference `{varName}` |
+| `allow-additional-properties` | No | `true` | Set to `false` for strict validation |
+
+### Output Variables
+
+| Variable | Description |
+|----------|-------------|
+| `openapi.validation.error` | Error message if validation fails |
+| `openapi.validation.failed` | `"true"` or `"false"` |
+
+## Performance
+
+| Aspect | First Request | Subsequent Requests |
+|--------|---------------|---------------------|
+| Validator creation | ~500-1000ms | 0ms (cached) |
+| Request validation | ~1-5ms | ~1-5ms |
+| Memory per spec | ~1-5MB | Reused |
+
+## Multiple APIs Example
+
+For multiple APIs, use different KVM keys or variables:
+
+```xml
+<!-- For Users API -->
+<Step>
+    <Name>KVM-GetSpec</Name>
+    <Condition>proxy.pathsuffix MatchesPath "/users/**"</Condition>
+</Step>
+
+<!-- For Orders API -->
+<Step>
+    <Name>KVM-GetOrdersSpec</Name>
+    <Condition>proxy.pathsuffix MatchesPath "/orders/**"</Condition>
+</Step>
+
+<!-- Same Java Callout works for both -->
+<Step>
+    <Name>JavaCallout-ValidateRequest</Name>
+</Step>
+```
+
+Each unique spec content gets its own cached validator automatically.
+
+## Troubleshooting
+
+### Issue: ClassNotFoundException
+
+**Cause**: JAR not properly uploaded or wrong path
+
+**Solution**: Verify JAR is in `apiproxy/resources/java/` and `ResourceURL` matches
+
+### Issue: Spec parsing error
+
+**Cause**: Invalid YAML/JSON in spec content
+
+**Solution**: Validate your OpenAPI spec using a tool like Swagger Editor
+
+### Issue: Variable not resolved
+
+**Cause**: Variable reference `{varName}` not set before callout
+
+**Solution**: Ensure KVM or AssignMessage runs before JavaCallout
+
+### View Trace
+
+Use Apigee Debug/Trace to see:
+- `openapi.validation.error`
+- `openapi.validation.failed`
+- Java Callout execution time
