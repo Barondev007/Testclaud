@@ -35,14 +35,12 @@ class AdditionalPropertiesValidationTest {
         @DisplayName("Strict validator should REJECT request with additional properties")
         void strictValidator_shouldRejectAdditionalProperties() {
             // Request body with an additional property "nickname" not defined in the spec
-            String requestBody = """
-                {
-                    "name": "John Doe",
-                    "email": "john.doe@example.com",
-                    "age": 30,
-                    "nickname": "Johnny"
-                }
-                """;
+            String requestBody = "{\n" +
+                    "    \"name\": \"John Doe\",\n" +
+                    "    \"email\": \"john.doe@example.com\",\n" +
+                    "    \"age\": 30,\n" +
+                    "    \"nickname\": \"Johnny\"\n" +
+                    "}";
 
             ValidationReport report = strictService.validateRequest(
                     "POST", "/users", requestBody, CONTENT_TYPE_JSON);
@@ -60,16 +58,14 @@ class AdditionalPropertiesValidationTest {
         @DisplayName("Lenient validator should ACCEPT request with additional properties")
         void lenientValidator_shouldAcceptAdditionalProperties() {
             // Same request body with additional property "nickname"
-            String requestBody = """
-                {
-                    "name": "John Doe",
-                    "email": "john.doe@example.com",
-                    "age": 30,
-                    "nickname": "Johnny",
-                    "customField": "any value",
-                    "anotherExtra": 12345
-                }
-                """;
+            String requestBody = "{\n" +
+                    "    \"name\": \"John Doe\",\n" +
+                    "    \"email\": \"john.doe@example.com\",\n" +
+                    "    \"age\": 30,\n" +
+                    "    \"nickname\": \"Johnny\",\n" +
+                    "    \"customField\": \"any value\",\n" +
+                    "    \"anotherExtra\": 12345\n" +
+                    "}";
 
             ValidationReport report = lenientService.validateRequest(
                     "POST", "/users", requestBody, CONTENT_TYPE_JSON);
@@ -87,13 +83,11 @@ class AdditionalPropertiesValidationTest {
         @DisplayName("Both validators should accept valid request without additional properties")
         void bothValidators_shouldAcceptValidRequest() {
             // Valid request body without additional properties
-            String requestBody = """
-                {
-                    "name": "John Doe",
-                    "email": "john.doe@example.com",
-                    "age": 30
-                }
-                """;
+            String requestBody = "{\n" +
+                    "    \"name\": \"John Doe\",\n" +
+                    "    \"email\": \"john.doe@example.com\",\n" +
+                    "    \"age\": 30\n" +
+                    "}";
 
             ValidationReport strictReport = strictService.validateRequest(
                     "POST", "/users", requestBody, CONTENT_TYPE_JSON);
@@ -116,11 +110,9 @@ class AdditionalPropertiesValidationTest {
         @DisplayName("Both validators should reject request missing required fields")
         void bothValidators_shouldRejectMissingRequiredFields() {
             // Request body missing required "email" field
-            String requestBody = """
-                {
-                    "name": "John Doe"
-                }
-                """;
+            String requestBody = "{\n" +
+                    "    \"name\": \"John Doe\"\n" +
+                    "}";
 
             ValidationReport strictReport = strictService.validateRequest(
                     "POST", "/users", requestBody, CONTENT_TYPE_JSON);
@@ -147,17 +139,15 @@ class AdditionalPropertiesValidationTest {
         @DisplayName("Strict validator should REJECT response with additional properties")
         void strictValidator_shouldRejectResponseWithAdditionalProperties() {
             // Response body with additional properties not defined in the spec
-            String responseBody = """
-                {
-                    "id": "123e4567-e89b-12d3-a456-426614174000",
-                    "name": "John Doe",
-                    "email": "john.doe@example.com",
-                    "age": 30,
-                    "createdAt": "2024-01-15T10:30:00Z",
-                    "internalField": "secret",
-                    "debugInfo": {"server": "prod-1"}
-                }
-                """;
+            String responseBody = "{\n" +
+                    "    \"id\": \"123e4567-e89b-12d3-a456-426614174000\",\n" +
+                    "    \"name\": \"John Doe\",\n" +
+                    "    \"email\": \"john.doe@example.com\",\n" +
+                    "    \"age\": 30,\n" +
+                    "    \"createdAt\": \"2024-01-15T10:30:00Z\",\n" +
+                    "    \"internalField\": \"secret\",\n" +
+                    "    \"debugInfo\": {\"server\": \"prod-1\"}\n" +
+                    "}";
 
             ValidationReport report = strictService.validateResponse(
                     "POST", "/users", 201, responseBody, CONTENT_TYPE_JSON);
@@ -174,18 +164,16 @@ class AdditionalPropertiesValidationTest {
         @DisplayName("Lenient validator should ACCEPT response with additional properties")
         void lenientValidator_shouldAcceptResponseWithAdditionalProperties() {
             // Same response body with additional properties
-            String responseBody = """
-                {
-                    "id": "123e4567-e89b-12d3-a456-426614174000",
-                    "name": "John Doe",
-                    "email": "john.doe@example.com",
-                    "age": 30,
-                    "createdAt": "2024-01-15T10:30:00Z",
-                    "internalField": "secret",
-                    "debugInfo": {"server": "prod-1"},
-                    "extraData": [1, 2, 3]
-                }
-                """;
+            String responseBody = "{\n" +
+                    "    \"id\": \"123e4567-e89b-12d3-a456-426614174000\",\n" +
+                    "    \"name\": \"John Doe\",\n" +
+                    "    \"email\": \"john.doe@example.com\",\n" +
+                    "    \"age\": 30,\n" +
+                    "    \"createdAt\": \"2024-01-15T10:30:00Z\",\n" +
+                    "    \"internalField\": \"secret\",\n" +
+                    "    \"debugInfo\": {\"server\": \"prod-1\"},\n" +
+                    "    \"extraData\": [1, 2, 3]\n" +
+                    "}";
 
             ValidationReport report = lenientService.validateResponse(
                     "POST", "/users", 201, responseBody, CONTENT_TYPE_JSON);
@@ -206,25 +194,21 @@ class AdditionalPropertiesValidationTest {
         @Test
         @DisplayName("Lenient validator should accept full interaction with additional properties")
         void lenientValidator_shouldAcceptFullInteractionWithAdditionalProperties() {
-            String requestBody = """
-                {
-                    "name": "Jane Smith",
-                    "email": "jane.smith@example.com",
-                    "department": "Engineering",
-                    "metadata": {"source": "api"}
-                }
-                """;
+            String requestBody = "{\n" +
+                    "    \"name\": \"Jane Smith\",\n" +
+                    "    \"email\": \"jane.smith@example.com\",\n" +
+                    "    \"department\": \"Engineering\",\n" +
+                    "    \"metadata\": {\"source\": \"api\"}\n" +
+                    "}";
 
-            String responseBody = """
-                {
-                    "id": "456e7890-e89b-12d3-a456-426614174001",
-                    "name": "Jane Smith",
-                    "email": "jane.smith@example.com",
-                    "createdAt": "2024-01-16T14:00:00Z",
-                    "lastModified": "2024-01-16T14:00:00Z",
-                    "version": 1
-                }
-                """;
+            String responseBody = "{\n" +
+                    "    \"id\": \"456e7890-e89b-12d3-a456-426614174001\",\n" +
+                    "    \"name\": \"Jane Smith\",\n" +
+                    "    \"email\": \"jane.smith@example.com\",\n" +
+                    "    \"createdAt\": \"2024-01-16T14:00:00Z\",\n" +
+                    "    \"lastModified\": \"2024-01-16T14:00:00Z\",\n" +
+                    "    \"version\": 1\n" +
+                    "}";
 
             ValidationReport report = lenientService.validateInteraction(
                     "POST", "/users",
