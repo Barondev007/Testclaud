@@ -3,49 +3,71 @@ import com.atlassian.oai.validator.model.SimpleRequest
 import com.atlassian.oai.validator.report.LevelResolverFactory
 import com.atlassian.oai.validator.report.ValidationReport
 import java.util.concurrent.ConcurrentHashMap
+import java.security.MessageDigest
 
 /**
  * Axway API Gateway - Swagger Request Validator Filter
  *
  * Features:
- * - Spec path passed as parameter (supports multiple APIs)
- * - Thread-safe validator caching (one validator per spec)
+ * - Spec content passed directly as parameter (not from file path)
+ * - Thread-safe validator caching (one validator per unique spec)
  * - Lenient validation (allows additional properties)
  *
- * Required Axway Message Attributes (set before this filter):
- * - openapi.spec.path : Path to the OpenAPI spec file (e.g., "file:///path/to/spec.yaml")
+ * Required Axway Message Attributes:
+ * - specfile : The OpenAPI spec content as a String (YAML or JSON)
  *
  * Optional Attributes:
  * - openapi.allow.additional.properties : "true" or "false" (default: "true")
  */
 
 // ============================================================================
-// VALIDATOR CACHE - Thread-safe, one validator per spec
+// VALIDATOR CACHE - Thread-safe, one validator per unique spec content
 // ============================================================================
 
 class ValidatorCache {
     // ConcurrentHashMap for thread-safe access across multiple requests
+    // Key: hash of spec content + config, Value: validator instance
     private static final ConcurrentHashMap<String, OpenApiInteractionValidator> cache = new ConcurrentHashMap<>()
 
     /**
-     * Get or create a validator for the given spec path.
-     * Thread-safe: multiple threads can safely call this method.
+     * Get or create a validator for the given spec content.
+     * Uses MD5 hash of spec content as cache key for efficiency.
      */
-    static OpenApiInteractionValidator getValidator(String specPath, boolean allowAdditionalProperties) {
-        // Create cache key that includes the configuration
-        String cacheKey = specPath + "|" + allowAdditionalProperties
+    static OpenApiInteractionValidator getValidator(String specContent, boolean allowAdditionalProperties) {
+        // Create cache key from hash of spec content + configuration
+        String specHash = hashSpec(specContent)
+        String cacheKey = specHash + "|" + allowAdditionalProperties
 
         // computeIfAbsent is atomic and thread-safe
         return cache.computeIfAbsent(cacheKey) { key ->
-            createValidator(specPath, allowAdditionalProperties)
+            createValidator(specContent, allowAdditionalProperties)
         }
     }
 
     /**
-     * Create a new validator instance.
+     * Create MD5 hash of spec content for cache key.
+     * This avoids storing large spec strings as keys.
      */
-    private static OpenApiInteractionValidator createValidator(String specPath, boolean allowAdditionalProperties) {
-        def builder = OpenApiInteractionValidator.createForSpecificationUrl(specPath)
+    private static String hashSpec(String specContent) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5")
+            byte[] digest = md.digest(specContent.getBytes("UTF-8"))
+            StringBuilder sb = new StringBuilder()
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b))
+            }
+            return sb.toString()
+        } catch (Exception e) {
+            // Fallback to hashCode if MD5 fails
+            return String.valueOf(specContent.hashCode())
+        }
+    }
+
+    /**
+     * Create a new validator instance from spec content.
+     */
+    private static OpenApiInteractionValidator createValidator(String specContent, boolean allowAdditionalProperties) {
+        def builder = OpenApiInteractionValidator.createForInlineApiSpecification(specContent)
 
         if (allowAdditionalProperties) {
             builder.withLevelResolver(LevelResolverFactory.withAdditionalPropertiesIgnored())
@@ -55,21 +77,14 @@ class ValidatorCache {
     }
 
     /**
-     * Clear the cache (useful for reloading specs).
+     * Clear the entire cache (useful for memory management or spec updates).
      */
     static void clearCache() {
         cache.clear()
     }
 
     /**
-     * Remove a specific spec from the cache.
-     */
-    static void invalidate(String specPath) {
-        cache.keySet().removeIf { it.startsWith(specPath + "|") }
-    }
-
-    /**
-     * Get cache statistics.
+     * Get cache size for monitoring.
      */
     static int getCacheSize() {
         return cache.size()
@@ -82,12 +97,12 @@ class ValidatorCache {
 
 def invoke(Message msg) {
     try {
-        // Get spec path from message attribute (set by previous filter or API Manager)
-        def specPath = msg.get("openapi.spec.path")
+        // Get spec content from message attribute
+        def specContent = msg.get("specfile")
 
-        if (specPath == null || specPath.isEmpty()) {
-            Trace.error("OpenAPI spec path not configured. Set 'openapi.spec.path' attribute.")
-            msg.put("openapi.validation.error", "OpenAPI spec path not configured")
+        if (specContent == null || specContent.isEmpty()) {
+            Trace.error("OpenAPI spec not provided. Set 'specfile' attribute with spec content.")
+            msg.put("openapi.validation.error", "OpenAPI spec not provided")
             return false
         }
 
@@ -95,8 +110,8 @@ def invoke(Message msg) {
         def allowAdditionalPropsStr = msg.get("openapi.allow.additional.properties") ?: "true"
         def allowAdditionalProperties = "true".equalsIgnoreCase(allowAdditionalPropsStr)
 
-        // Get cached validator (thread-safe)
-        def validator = ValidatorCache.getValidator(specPath, allowAdditionalProperties)
+        // Get cached validator (thread-safe, reuses instance for same spec)
+        def validator = ValidatorCache.getValidator(specContent, allowAdditionalProperties)
 
         // Extract request details
         def httpMethod = msg.get("http.request.verb") ?: "GET"
@@ -127,13 +142,13 @@ def invoke(Message msg) {
 
         if (report.hasErrors()) {
             def errorMessage = formatErrors(report)
-            Trace.error("Validation Failed [" + specPath + "]: " + errorMessage)
+            Trace.error("Validation Failed: " + errorMessage)
             msg.put("openapi.validation.error", errorMessage)
             msg.put("openapi.validation.failed", "true")
             return false
         }
 
-        Trace.debug("Validation Passed [" + specPath + "]: " + httpMethod + " " + requestPath)
+        Trace.debug("Validation Passed: " + httpMethod + " " + requestPath)
         msg.put("openapi.validation.failed", "false")
         return true
 
