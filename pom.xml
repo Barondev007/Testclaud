@@ -13,8 +13,8 @@
     <description>Example project demonstrating how to configure Atlassian Swagger Request Validator to allow additional properties</description>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <swagger-request-validator.version>2.40.0</swagger-request-validator.version>
         <junit.version>5.10.1</junit.version>
