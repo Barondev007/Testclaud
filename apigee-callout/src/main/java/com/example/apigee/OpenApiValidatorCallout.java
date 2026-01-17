@@ -16,75 +16,81 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Apigee Java Callout for OpenAPI Request Validation
- *
- * Features:
- * - Spec content passed directly as property (not from file path)
- * - Thread-safe validator caching (one validator per unique spec)
- * - Lenient validation (allows additional properties)
- *
- * Required Properties:
- * - specfile : The OpenAPI spec content as a String (YAML or JSON)
- *
- * Optional Properties:
- * - allow-additional-properties : "true" or "false" (default: "true")
- *
- * Output Variables (set in message context):
- * - openapi.validation.error : Error message if validation fails
- * - openapi.validation.failed : "true" or "false"
  */
 public class OpenApiValidatorCallout implements Execution {
-
-    // ========================================================================
-    // VALIDATOR CACHE - Thread-safe, one validator per unique spec content
-    // ========================================================================
 
     private static final ConcurrentHashMap<String, OpenApiInteractionValidator> VALIDATOR_CACHE =
             new ConcurrentHashMap<>();
 
-    // Property map from callout configuration
     private final Map<String, String> properties;
 
-    /**
-     * Constructor called by Apigee with properties from the callout configuration.
-     */
     public OpenApiValidatorCallout(Map<String, String> properties) {
         this.properties = properties;
     }
 
-    // ========================================================================
-    // MAIN EXECUTION
-    // ========================================================================
-
     @Override
     public ExecutionResult execute(MessageContext messageContext, ExecutionContext executionContext) {
         try {
-            // Get spec content from property (can reference a variable)
+            // Get spec content from property
             String specContent = resolveProperty("specfile", messageContext);
 
+            // Debug: Store what we received
+            messageContext.setVariable("openapi.debug.specfile.raw", properties.get("specfile"));
+            messageContext.setVariable("openapi.debug.specfile.resolved",
+                specContent != null ? specContent.substring(0, Math.min(200, specContent.length())) : "NULL");
+            messageContext.setVariable("openapi.debug.specfile.length",
+                specContent != null ? String.valueOf(specContent.length()) : "0");
+
             if (specContent == null || specContent.isEmpty()) {
-                setError(messageContext, "OpenAPI spec not provided. Set 'specfile' property.");
+                setError(messageContext, "OpenAPI spec not provided. Set 'specfile' property. Raw value: "
+                    + properties.get("specfile"));
                 return ExecutionResult.ABORT;
             }
 
-            // Get configuration (default: allow additional properties)
+            // Trim whitespace and check for valid start
+            specContent = specContent.trim();
+
+            // Basic validation: spec should start with openapi/swagger (YAML) or { (JSON)
+            if (!specContent.startsWith("openapi") &&
+                !specContent.startsWith("swagger") &&
+                !specContent.startsWith("{") &&
+                !specContent.startsWith("\"openapi") &&
+                !specContent.startsWith("'openapi")) {
+                setError(messageContext, "Invalid spec format. Must be YAML (start with 'openapi:') or JSON (start with '{'). " +
+                    "Received: " + specContent.substring(0, Math.min(50, specContent.length())));
+                return ExecutionResult.ABORT;
+            }
+
+            // Get configuration
             String allowAdditionalPropsStr = resolveProperty("allow-additional-properties", messageContext);
             boolean allowAdditionalProperties = allowAdditionalPropsStr == null ||
                     "true".equalsIgnoreCase(allowAdditionalPropsStr);
 
-            // Get cached validator (thread-safe, reuses instance for same spec)
-            OpenApiInteractionValidator validator = getValidator(specContent, allowAdditionalProperties);
+            // Get cached validator
+            OpenApiInteractionValidator validator;
+            try {
+                validator = getValidator(specContent, allowAdditionalProperties);
+            } catch (Exception e) {
+                setError(messageContext, "Failed to parse OpenAPI spec: " + e.getMessage() +
+                    ". Spec preview: " + specContent.substring(0, Math.min(100, specContent.length())));
+                return ExecutionResult.ABORT;
+            }
 
-            // Extract request details from Apigee message context
+            // Extract request details
             String httpMethod = messageContext.getVariable("request.verb");
             String requestPath = messageContext.getVariable("proxy.pathsuffix");
             String contentType = messageContext.getVariable("request.header.content-type");
             String requestBody = messageContext.getVariable("request.content");
 
             if (httpMethod == null) httpMethod = "GET";
-            if (requestPath == null) requestPath = "/";
+            if (requestPath == null || requestPath.isEmpty()) requestPath = "/";
             if (contentType == null) contentType = "application/json";
 
-            // Build request for validation
+            // Debug: Store request info
+            messageContext.setVariable("openapi.debug.request.method", httpMethod);
+            messageContext.setVariable("openapi.debug.request.path", requestPath);
+
+            // Build request
             SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(httpMethod, requestPath);
 
             if (requestBody != null && !requestBody.isEmpty()) {
@@ -98,7 +104,7 @@ public class OpenApiValidatorCallout implements Execution {
                 addQueryParams(requestBuilder, queryString);
             }
 
-            // Validate request
+            // Validate
             ValidationReport report = validator.validateRequest(requestBuilder.build());
 
             if (report.hasErrors()) {
@@ -107,23 +113,15 @@ public class OpenApiValidatorCallout implements Execution {
                 return ExecutionResult.ABORT;
             }
 
-            // Validation passed
             messageContext.setVariable("openapi.validation.failed", "false");
             return ExecutionResult.SUCCESS;
 
         } catch (Exception e) {
-            setError(messageContext, "Internal validation error: " + e.getMessage());
+            setError(messageContext, "Internal error: " + e.getClass().getName() + " - " + e.getMessage());
             return ExecutionResult.ABORT;
         }
     }
 
-    // ========================================================================
-    // VALIDATOR CACHE METHODS
-    // ========================================================================
-
-    /**
-     * Get or create a validator for the given spec content.
-     */
     private static OpenApiInteractionValidator getValidator(String specContent, boolean allowAdditionalProperties) {
         String specHash = hashSpec(specContent);
         String cacheKey = specHash + "|" + allowAdditionalProperties;
@@ -132,9 +130,6 @@ public class OpenApiValidatorCallout implements Execution {
                 createValidator(specContent, allowAdditionalProperties));
     }
 
-    /**
-     * Create MD5 hash of spec content for cache key.
-     */
     private static String hashSpec(String specContent) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
@@ -149,9 +144,6 @@ public class OpenApiValidatorCallout implements Execution {
         }
     }
 
-    /**
-     * Create a new validator instance from spec content.
-     */
     private static OpenApiInteractionValidator createValidator(String specContent, boolean allowAdditionalProperties) {
         OpenApiInteractionValidator.Builder builder =
                 OpenApiInteractionValidator.createForInlineApiSpecification(specContent);
@@ -163,12 +155,8 @@ public class OpenApiValidatorCallout implements Execution {
         return builder.build();
     }
 
-    // ========================================================================
-    // HELPER METHODS
-    // ========================================================================
-
     /**
-     * Resolve a property value, supporting Apigee variable references.
+     * Resolve property value - supports Apigee variable references.
      */
     private String resolveProperty(String propertyName, MessageContext messageContext) {
         String value = properties.get(propertyName);
@@ -176,18 +164,16 @@ public class OpenApiValidatorCallout implements Execution {
             return null;
         }
 
-        // If the value is a variable reference like {myVar}, resolve it
-        if (value.startsWith("{") && value.endsWith("}")) {
+        // Check for variable reference: {varName}
+        if (value.startsWith("{") && value.endsWith("}") && !value.startsWith("{\"")) {
             String varName = value.substring(1, value.length() - 1);
-            return messageContext.getVariable(varName);
+            Object resolved = messageContext.getVariable(varName);
+            return resolved != null ? resolved.toString() : null;
         }
 
         return value;
     }
 
-    /**
-     * Add query parameters to the request builder.
-     */
     private void addQueryParams(SimpleRequest.Builder builder, String queryString) {
         try {
             String[] pairs = queryString.split("&");
@@ -198,13 +184,10 @@ public class OpenApiValidatorCallout implements Execution {
                 builder.withQueryParam(key, value);
             }
         } catch (Exception e) {
-            // Ignore query param parsing errors
+            // Ignore
         }
     }
 
-    /**
-     * Format validation errors into a readable message.
-     */
     private String formatErrors(ValidationReport report) {
         StringBuilder sb = new StringBuilder();
         for (ValidationReport.Message message : report.getMessages()) {
@@ -216,28 +199,15 @@ public class OpenApiValidatorCallout implements Execution {
         return sb.toString();
     }
 
-    /**
-     * Set error variables in message context.
-     */
     private void setError(MessageContext messageContext, String errorMessage) {
         messageContext.setVariable("openapi.validation.error", errorMessage);
         messageContext.setVariable("openapi.validation.failed", "true");
     }
 
-    // ========================================================================
-    // CACHE MANAGEMENT (can be called from another callout if needed)
-    // ========================================================================
-
-    /**
-     * Clear the validator cache.
-     */
     public static void clearCache() {
         VALIDATOR_CACHE.clear();
     }
 
-    /**
-     * Get the current cache size.
-     */
     public static int getCacheSize() {
         return VALIDATOR_CACHE.size();
     }
