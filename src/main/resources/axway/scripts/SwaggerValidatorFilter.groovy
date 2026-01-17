@@ -1,5 +1,6 @@
 import com.atlassian.oai.validator.OpenApiInteractionValidator
 import com.atlassian.oai.validator.model.SimpleRequest
+import com.atlassian.oai.validator.report.LevelResolver
 import com.atlassian.oai.validator.report.LevelResolverFactory
 import com.atlassian.oai.validator.report.ValidationReport
 import java.util.concurrent.ConcurrentHashMap
@@ -9,45 +10,52 @@ import java.security.MessageDigest
  * Axway API Gateway - Swagger Request Validator Filter
  *
  * Features:
- * - Spec content passed directly as parameter (not from file path)
- * - Thread-safe validator caching (one validator per unique spec)
- * - Lenient validation (allows additional properties)
+ * - Spec content passed directly as parameter (specfile attribute)
+ * - Thread-safe validator caching (one validator per unique spec + validation level)
+ * - Configurable validation levels
  *
  * Required Axway Message Attributes:
  * - specfile : The OpenAPI spec content as a String (YAML or JSON)
  *
  * Optional Attributes:
- * - openapi.allow.additional.properties : "true" or "false" (default: "true")
+ * - openapi.validation.level : Validation level (default: "strict")
+ *     - "light"    : All errors stored in variable, flow NOT blocked
+ *     - "lenient"  : Additional properties ignored, other errors block flow
+ *     - "strict"   : All errors block the flow
+ *
+ * Output Attributes:
+ * - openapi.validation.failed : "true" or "false"
+ * - openapi.validation.error : Error message(s) if validation failed
+ * - openapi.validation.errors.count : Number of validation errors
+ * - openapi.validation.errors.all : All error messages (for light mode)
  */
 
 // ============================================================================
-// VALIDATOR CACHE - Thread-safe, one validator per unique spec content
+// VALIDATION LEVELS
+// ============================================================================
+
+class ValidationLevel {
+    static final String LIGHT = "light"       // Non-blocking, all errors stored
+    static final String LENIENT = "lenient"   // Additional properties allowed, other errors block
+    static final String STRICT = "strict"     // All errors block
+}
+
+// ============================================================================
+// VALIDATOR CACHE - Thread-safe, one validator per unique spec + level
 // ============================================================================
 
 class ValidatorCache {
-    // ConcurrentHashMap for thread-safe access across multiple requests
-    // Key: hash of spec content + config, Value: validator instance
     private static final ConcurrentHashMap<String, OpenApiInteractionValidator> cache = new ConcurrentHashMap<>()
 
-    /**
-     * Get or create a validator for the given spec content.
-     * Uses MD5 hash of spec content as cache key for efficiency.
-     */
-    static OpenApiInteractionValidator getValidator(String specContent, boolean allowAdditionalProperties) {
-        // Create cache key from hash of spec content + configuration
+    static OpenApiInteractionValidator getValidator(String specContent, String validationLevel) {
         String specHash = hashSpec(specContent)
-        String cacheKey = specHash + "|" + allowAdditionalProperties
+        String cacheKey = specHash + "|" + validationLevel
 
-        // computeIfAbsent is atomic and thread-safe
         return cache.computeIfAbsent(cacheKey) { key ->
-            createValidator(specContent, allowAdditionalProperties)
+            createValidator(specContent, validationLevel)
         }
     }
 
-    /**
-     * Create MD5 hash of spec content for cache key.
-     * This avoids storing large spec strings as keys.
-     */
     private static String hashSpec(String specContent) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5")
@@ -58,34 +66,67 @@ class ValidatorCache {
             }
             return sb.toString()
         } catch (Exception e) {
-            // Fallback to hashCode if MD5 fails
             return String.valueOf(specContent.hashCode())
         }
     }
 
-    /**
-     * Create a new validator instance from spec content.
-     */
-    private static OpenApiInteractionValidator createValidator(String specContent, boolean allowAdditionalProperties) {
+    private static OpenApiInteractionValidator createValidator(String specContent, String validationLevel) {
         def builder = OpenApiInteractionValidator.createForInlineApiSpecification(specContent)
 
-        if (allowAdditionalProperties) {
-            builder.withLevelResolver(LevelResolverFactory.withAdditionalPropertiesIgnored())
+        // Apply level resolver based on validation level
+        switch (validationLevel) {
+            case ValidationLevel.LIGHT:
+                // Light mode: Demote all errors to WARN so hasErrors() returns false
+                // but messages are still collected
+                builder.withLevelResolver(createLightLevelResolver())
+                break
+
+            case ValidationLevel.LENIENT:
+                // Lenient mode: Only ignore additional properties
+                builder.withLevelResolver(LevelResolverFactory.withAdditionalPropertiesIgnored())
+                break
+
+            case ValidationLevel.STRICT:
+            default:
+                // Strict mode: No level resolver, all errors are reported as-is
+                break
         }
 
         return builder.build()
     }
 
     /**
-     * Clear the entire cache (useful for memory management or spec updates).
+     * Creates a LevelResolver that demotes all errors to INFO level
+     * This allows collecting all messages without blocking the flow
      */
+    private static LevelResolver createLightLevelResolver() {
+        return LevelResolver.create()
+            // Demote all common validation errors to INFO (non-blocking)
+            .withLevel("validation.request.body.schema.additionalProperties", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.additionalProperties", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.required", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.required", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.type", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.type", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.format", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.enum", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.minimum", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.maximum", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.minLength", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.maxLength", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.pattern", ValidationReport.Level.INFO)
+            .withLevel("validation.request.parameter.query.missing", ValidationReport.Level.INFO)
+            .withLevel("validation.request.parameter.header.missing", ValidationReport.Level.INFO)
+            .withLevel("validation.request.path.missing", ValidationReport.Level.INFO)
+            .withLevel("validation.request.contentType.notAllowed", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.missing", ValidationReport.Level.INFO)
+            .build()
+    }
+
     static void clearCache() {
         cache.clear()
     }
 
-    /**
-     * Get cache size for monitoring.
-     */
     static int getCacheSize() {
         return cache.size()
     }
@@ -101,17 +142,24 @@ def invoke(Message msg) {
         def specContent = msg.get("specfile")
 
         if (specContent == null || specContent.isEmpty()) {
-            Trace.error("OpenAPI spec not provided. Set 'specfile' attribute with spec content.")
+            Trace.error("OpenAPI spec not provided. Set 'specfile' attribute.")
             msg.put("openapi.validation.error", "OpenAPI spec not provided")
+            msg.put("openapi.validation.failed", "true")
             return false
         }
 
-        // Get configuration (default: allow additional properties)
-        def allowAdditionalPropsStr = msg.get("openapi.allow.additional.properties") ?: "true"
-        def allowAdditionalProperties = "true".equalsIgnoreCase(allowAdditionalPropsStr)
+        // Get validation level (default: strict)
+        def validationLevel = msg.get("openapi.validation.level") ?: ValidationLevel.STRICT
+        validationLevel = validationLevel.toLowerCase().trim()
 
-        // Get cached validator (thread-safe, reuses instance for same spec)
-        def validator = ValidatorCache.getValidator(specContent, allowAdditionalProperties)
+        // Validate the level parameter
+        if (![ValidationLevel.LIGHT, ValidationLevel.LENIENT, ValidationLevel.STRICT].contains(validationLevel)) {
+            Trace.warn("Invalid validation level '${validationLevel}', defaulting to 'strict'")
+            validationLevel = ValidationLevel.STRICT
+        }
+
+        // Get cached validator
+        def validator = ValidatorCache.getValidator(specContent.trim(), validationLevel)
 
         // Extract request details
         def httpMethod = msg.get("http.request.verb") ?: "GET"
@@ -140,22 +188,48 @@ def invoke(Message msg) {
         // Validate request
         def report = validator.validateRequest(requestBuilder.build())
 
-        if (report.hasErrors()) {
-            def errorMessage = formatErrors(report)
-            Trace.error("Validation Failed: " + errorMessage)
-            msg.put("openapi.validation.error", errorMessage)
-            msg.put("openapi.validation.failed", "true")
-            return false
-        }
+        // Collect all messages (errors, warnings, info)
+        def allMessages = collectAllMessages(report)
+        def errorCount = allMessages.size()
 
-        Trace.debug("Validation Passed: " + httpMethod + " " + requestPath)
-        msg.put("openapi.validation.failed", "false")
-        return true
+        // Store all messages
+        msg.put("openapi.validation.errors.all", allMessages.join("; "))
+        msg.put("openapi.validation.errors.count", String.valueOf(errorCount))
+
+        // Handle based on validation level
+        switch (validationLevel) {
+            case ValidationLevel.LIGHT:
+                // Light mode: Store errors but don't block
+                if (errorCount > 0) {
+                    msg.put("openapi.validation.error", allMessages.join("; "))
+                    msg.put("openapi.validation.failed", "true")
+                    Trace.info("Validation issues (light mode, non-blocking): " + allMessages.join("; "))
+                } else {
+                    msg.put("openapi.validation.failed", "false")
+                }
+                // Always return true in light mode (non-blocking)
+                return true
+
+            case ValidationLevel.LENIENT:
+            case ValidationLevel.STRICT:
+            default:
+                // Lenient/Strict mode: Block on errors
+                if (report.hasErrors()) {
+                    def errorMessage = formatErrors(report)
+                    msg.put("openapi.validation.error", errorMessage)
+                    msg.put("openapi.validation.failed", "true")
+                    Trace.error("Validation Failed: " + errorMessage)
+                    return false
+                }
+                msg.put("openapi.validation.failed", "false")
+                return true
+        }
 
     } catch (Exception e) {
         Trace.error("Validation Exception: " + e.getMessage())
         e.printStackTrace()
         msg.put("openapi.validation.error", "Internal validation error: " + e.getMessage())
+        msg.put("openapi.validation.failed", "true")
         return false
     }
 }
@@ -196,6 +270,25 @@ def parseQueryParams(String queryString) {
     return params
 }
 
+/**
+ * Collect all messages (INFO level and above) for light mode
+ */
+def collectAllMessages(ValidationReport report) {
+    def messages = []
+    report.getMessages().each { message ->
+        // Collect INFO, WARN, and ERROR messages
+        if (message.getLevel() in [ValidationReport.Level.INFO,
+                                    ValidationReport.Level.WARN,
+                                    ValidationReport.Level.ERROR]) {
+            messages.add("[" + message.getKey() + "] " + message.getMessage())
+        }
+    }
+    return messages
+}
+
+/**
+ * Format only ERROR level messages
+ */
 def formatErrors(ValidationReport report) {
     def errors = []
     report.getMessages().each { message ->
