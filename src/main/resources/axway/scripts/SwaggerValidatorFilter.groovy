@@ -243,15 +243,58 @@ def extractBody(Message msg) {
         def body = msg.get("content.body")
         if (body == null) return null
 
+        // Handle different Axway body types
+        def bodyClassName = body.getClass().getName()
+
+        // JSONBody - use getJSON() to get the JSON object, then convert to string
+        if (bodyClassName.contains("JSONBody")) {
+            def json = body.getJSON()
+            if (json != null) {
+                return json.toString()
+            }
+        }
+
+        // XMLBody - use getDocument() or toString()
+        if (bodyClassName.contains("XMLBody")) {
+            return body.toString()
+        }
+
+        // Try to get content as string directly
+        if (body.metaClass.respondsTo(body, "getContentAsString")) {
+            return body.getContentAsString()
+        }
+
+        // Try to get as bytes and convert
+        if (body.metaClass.respondsTo(body, "getContent")) {
+            def content = body.getContent()
+            if (content instanceof byte[]) {
+                return new String(content, "UTF-8")
+            }
+            return content?.toString()
+        }
+
+        // Try InputStream (for generic Body types)
         if (body.metaClass.respondsTo(body, "getInputStream")) {
-            def is = body.getInputStream()
+            def is = body.getInputStream(null)  // Axway may require content type param
             if (is != null) {
                 return is.getText("UTF-8")
             }
         }
+
+        // Fallback: try toString()
         return body.toString()
+
     } catch (Exception e) {
-        Trace.debug("Could not extract body: " + e.getMessage())
+        Trace.debug("Could not extract body: " + e.getClass().getName() + " - " + e.getMessage())
+        // Try alternative: get raw content from message
+        try {
+            def rawContent = msg.get("content")
+            if (rawContent != null) {
+                return rawContent.toString()
+            }
+        } catch (Exception e2) {
+            Trace.debug("Could not extract raw content: " + e2.getMessage())
+        }
         return null
     }
 }
