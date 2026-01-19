@@ -28,13 +28,21 @@ import java.security.MessageDigest
  * - http.response.status      : Response status code (if set, validates as response)
  * - openapi.validation.level  : Validation level (light, lenient, strict - default: strict)
  *
+ * - openapi.validation.debug     : Enable debug logging ("true" to enable)
+ *
  * Output Attributes:
  * - openapi.validation.failed       : "true" or "false"
  * - openapi.validation.error        : Error message(s)
  * - openapi.validation.errors.count : Number of errors
  * - openapi.validation.errors.all   : All error messages
  * - openapi.validation.type         : "request" or "response"
+ * - openapi.validation.debug.headers      : Debug info about extracted headers (when debug enabled)
+ * - openapi.validation.debug.queryparams  : Debug info about extracted query params (when debug enabled)
+ * - openapi.validation.debug.body         : Debug info about extracted body (when debug enabled)
  */
+
+// Debug flag - set globally for helper methods
+@groovy.transform.Field boolean debugEnabled = false
 
 // ============================================================================
 // VALIDATION LEVELS
@@ -132,6 +140,14 @@ class ValidatorCache {
 
 def invoke(Message msg) {
     try {
+        // Check if debug mode is enabled
+        def debugAttr = msg.get("openapi.validation.debug")
+        debugEnabled = (debugAttr != null && debugAttr.toString().equalsIgnoreCase("true"))
+
+        if (debugEnabled) {
+            Trace.info("========== OpenAPI Validation DEBUG MODE ENABLED ==========")
+        }
+
         // Get spec content
         def specContent = msg.get("specfile")
 
@@ -151,6 +167,10 @@ def invoke(Message msg) {
             validationLevel = ValidationLevel.STRICT
         }
 
+        if (debugEnabled) {
+            Trace.info("[DEBUG] Validation level: ${validationLevel}")
+        }
+
         // Get cached validator
         def validator = ValidatorCache.getValidator(specContent.trim(), validationLevel)
 
@@ -160,6 +180,13 @@ def invoke(Message msg) {
 
         msg.put("openapi.validation.type", isResponseValidation ? "response" : "request")
 
+        if (debugEnabled) {
+            Trace.info("[DEBUG] Validation type: ${isResponseValidation ? 'response' : 'request'}")
+            if (isResponseValidation) {
+                Trace.info("[DEBUG] Response status: ${responseStatus}")
+            }
+        }
+
         // Extract common data
         def httpMethod = msg.get("http.request.verb") ?: "GET"
         def requestPath = msg.get("http.request.path") ?: "/"
@@ -167,6 +194,13 @@ def invoke(Message msg) {
         def contentType = extractContentType(msg)
         def headers = mergeHeaders(msg)
         def queryParams = extractQueryParams(msg)
+
+        if (debugEnabled) {
+            Trace.info("[DEBUG] HTTP Method: ${httpMethod}")
+            Trace.info("[DEBUG] Request Path: ${requestPath}")
+            Trace.info("[DEBUG] Content-Type: ${contentType}")
+            Trace.info("[DEBUG] Body length: ${body?.length() ?: 0} chars")
+        }
 
         ValidationReport report
 
@@ -286,51 +320,122 @@ def validateResponse(OpenApiInteractionValidator validator, String httpMethod, S
 // ============================================================================
 
 def extractBody(Message msg) {
+    def debugInfo = new StringBuilder()
     try {
         def body = msg.get("content.body")
-        if (body == null) return null
+
+        if (debugEnabled) {
+            debugInfo.append("=== content.body ===\n")
+            if (body == null) {
+                debugInfo.append("  [NULL] content.body is null\n")
+                Trace.info("[DEBUG] content.body: NULL")
+            } else {
+                debugInfo.append("  [TYPE] ${body.getClass().getName()}\n")
+                Trace.info("[DEBUG] content.body type: ${body.getClass().getName()}")
+            }
+        }
+
+        if (body == null) {
+            if (debugEnabled) {
+                msg.put("openapi.validation.debug.body", debugInfo.toString())
+            }
+            return null
+        }
 
         def bodyClassName = body.getClass().getName()
+        def extractedBody = null
+        def extractionMethod = "unknown"
 
         // JSONBody
         if (bodyClassName.contains("JSONBody")) {
+            extractionMethod = "JSONBody.getJSON()"
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using getJSON() for JSONBody\n")
+                Trace.info("[DEBUG] Extracting body via getJSON() for JSONBody")
+            }
             def json = body.getJSON()
             if (json != null) {
-                return json.toString()
+                extractedBody = json.toString()
             }
         }
-
         // XMLBody
-        if (bodyClassName.contains("XMLBody")) {
-            return body.toString()
+        else if (bodyClassName.contains("XMLBody")) {
+            extractionMethod = "XMLBody.toString()"
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using toString() for XMLBody\n")
+                Trace.info("[DEBUG] Extracting body via toString() for XMLBody")
+            }
+            extractedBody = body.toString()
         }
-
         // Try getContentAsString
-        if (body.metaClass.respondsTo(body, "getContentAsString")) {
-            return body.getContentAsString()
+        else if (body.metaClass.respondsTo(body, "getContentAsString")) {
+            extractionMethod = "getContentAsString()"
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using getContentAsString()\n")
+                Trace.info("[DEBUG] Extracting body via getContentAsString()")
+            }
+            extractedBody = body.getContentAsString()
         }
-
         // Try getContent
-        if (body.metaClass.respondsTo(body, "getContent")) {
+        else if (body.metaClass.respondsTo(body, "getContent")) {
+            extractionMethod = "getContent()"
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using getContent()\n")
+                Trace.info("[DEBUG] Extracting body via getContent()")
+            }
             def content = body.getContent()
             if (content instanceof byte[]) {
-                return new String(content, "UTF-8")
+                extractedBody = new String(content, "UTF-8")
+            } else {
+                extractedBody = content?.toString()
             }
-            return content?.toString()
         }
-
         // Try InputStream
-        if (body.metaClass.respondsTo(body, "getInputStream")) {
+        else if (body.metaClass.respondsTo(body, "getInputStream")) {
+            extractionMethod = "getInputStream()"
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using getInputStream()\n")
+                Trace.info("[DEBUG] Extracting body via getInputStream()")
+            }
             def is = body.getInputStream(null)
             if (is != null) {
-                return is.getText("UTF-8")
+                extractedBody = is.getText("UTF-8")
             }
         }
+        // Fallback to toString
+        else {
+            extractionMethod = "toString() [fallback]"
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using toString() as fallback\n")
+                debugInfo.append("  [METHODS] Available: ${body.metaClass.methods*.name.unique().sort()}\n")
+                Trace.info("[DEBUG] Extracting body via toString() (fallback)")
+                Trace.info("[DEBUG]   Available methods: ${body.metaClass.methods*.name.unique().sort().take(20)}")
+            }
+            extractedBody = body.toString()
+        }
 
-        return body.toString()
+        if (debugEnabled) {
+            debugInfo.append("  [METHOD] ${extractionMethod}\n")
+            debugInfo.append("  [LENGTH] ${extractedBody?.length() ?: 0} chars\n")
+            if (extractedBody != null && extractedBody.length() <= 500) {
+                debugInfo.append("  [CONTENT] ${extractedBody}\n")
+            } else if (extractedBody != null) {
+                debugInfo.append("  [CONTENT] ${extractedBody.take(500)}... (truncated)\n")
+            }
+            Trace.info("[DEBUG] Body extracted via ${extractionMethod}, length: ${extractedBody?.length() ?: 0} chars")
+            msg.put("openapi.validation.debug.body", debugInfo.toString())
+        }
+
+        return extractedBody
 
     } catch (Exception e) {
-        Trace.debug("Could not extract body: " + e.getMessage())
+        def errorMsg = "Could not extract body: ${e.getMessage()}"
+        debugInfo.append("  [ERROR] ${errorMsg}\n")
+        Trace.error("[DEBUG] ${errorMsg}")
+        if (debugEnabled) {
+            e.printStackTrace()
+            msg.put("openapi.validation.debug.body", debugInfo.toString())
+        }
         return null
     }
 }
@@ -353,42 +458,123 @@ def extractContentType(Message msg) {
 
 def mergeHeaders(Message msg) {
     def mergedHeaders = [:]
+    def debugInfo = new StringBuilder()
 
     // Get main headers (http.header)
     def httpHeaders = msg.get("http.header")
+    if (debugEnabled) {
+        debugInfo.append("=== http.header ===\n")
+        if (httpHeaders == null) {
+            debugInfo.append("  [NULL] http.header is null\n")
+            Trace.info("[DEBUG] http.header: NULL")
+        } else {
+            debugInfo.append("  [TYPE] ${httpHeaders.getClass().getName()}\n")
+            Trace.info("[DEBUG] http.header type: ${httpHeaders.getClass().getName()}")
+        }
+    }
+
     if (httpHeaders != null) {
-        extractHeadersToMap(httpHeaders, mergedHeaders)
+        extractHeadersToMap(httpHeaders, mergedHeaders, "http.header", debugInfo)
     }
 
     // Get extra headers (http.content.header) and merge
     def contentHeaders = msg.get("http.content.header")
+    if (debugEnabled) {
+        debugInfo.append("=== http.content.header ===\n")
+        if (contentHeaders == null) {
+            debugInfo.append("  [NULL] http.content.header is null\n")
+            Trace.info("[DEBUG] http.content.header: NULL")
+        } else {
+            debugInfo.append("  [TYPE] ${contentHeaders.getClass().getName()}\n")
+            Trace.info("[DEBUG] http.content.header type: ${contentHeaders.getClass().getName()}")
+        }
+    }
+
     if (contentHeaders != null) {
-        extractHeadersToMap(contentHeaders, mergedHeaders)
+        extractHeadersToMap(contentHeaders, mergedHeaders, "http.content.header", debugInfo)
+    }
+
+    // Log final merged headers
+    if (debugEnabled) {
+        debugInfo.append("=== MERGED HEADERS (${mergedHeaders.size()} total) ===\n")
+        Trace.info("[DEBUG] ========== MERGED HEADERS (${mergedHeaders.size()} total) ==========")
+        mergedHeaders.each { name, value ->
+            debugInfo.append("  ${name}: ${value}\n")
+            Trace.info("[DEBUG]   ${name}: ${value}")
+        }
+        msg.put("openapi.validation.debug.headers", debugInfo.toString())
     }
 
     return mergedHeaders
 }
 
-def extractHeadersToMap(Object headers, Map<String, String> targetMap) {
+def extractHeadersToMap(Object headers, Map<String, String> targetMap, String sourceName = "unknown", StringBuilder debugInfo = null) {
     try {
         if (headers instanceof Map) {
+            if (debugEnabled) {
+                debugInfo?.append("  [EXTRACTION] Using Map iteration for ${sourceName}\n")
+                Trace.info("[DEBUG] ${sourceName}: Extracting as Map (${headers.size()} entries)")
+            }
             headers.each { key, value ->
-                targetMap[key.toString()] = value?.toString() ?: ""
+                def keyStr = key.toString()
+                def valueStr = value?.toString() ?: ""
+                targetMap[keyStr] = valueStr
+                if (debugEnabled) {
+                    debugInfo?.append("    [MAP] ${keyStr} = ${valueStr}\n")
+                    Trace.info("[DEBUG]   [MAP] ${keyStr} = ${valueStr}")
+                }
             }
         } else if (headers.metaClass.respondsTo(headers, "getHeaderNames")) {
             // Axway HeaderSet
+            if (debugEnabled) {
+                debugInfo?.append("  [EXTRACTION] Using getHeaderNames() for ${sourceName}\n")
+                Trace.info("[DEBUG] ${sourceName}: Extracting via getHeaderNames() method")
+            }
             def headerNames = headers.getHeaderNames()
+            if (debugEnabled) {
+                debugInfo?.append("  [HEADER_NAMES] Found: ${headerNames}\n")
+                Trace.info("[DEBUG]   Header names found: ${headerNames}")
+            }
             headerNames.each { name ->
                 def value = headers.getHeader(name)
-                targetMap[name.toString()] = value?.toString() ?: ""
+                def nameStr = name.toString()
+                def valueStr = value?.toString() ?: ""
+                targetMap[nameStr] = valueStr
+                if (debugEnabled) {
+                    debugInfo?.append("    [HDR] ${nameStr} = ${valueStr}\n")
+                    Trace.info("[DEBUG]   [HDR] ${nameStr} = ${valueStr}")
+                }
             }
         } else if (headers.metaClass.respondsTo(headers, "entrySet")) {
+            if (debugEnabled) {
+                debugInfo?.append("  [EXTRACTION] Using entrySet() for ${sourceName}\n")
+                Trace.info("[DEBUG] ${sourceName}: Extracting via entrySet() method")
+            }
             headers.entrySet().each { entry ->
-                targetMap[entry.key.toString()] = entry.value?.toString() ?: ""
+                def keyStr = entry.key.toString()
+                def valueStr = entry.value?.toString() ?: ""
+                targetMap[keyStr] = valueStr
+                if (debugEnabled) {
+                    debugInfo?.append("    [ENTRY] ${keyStr} = ${valueStr}\n")
+                    Trace.info("[DEBUG]   [ENTRY] ${keyStr} = ${valueStr}")
+                }
+            }
+        } else {
+            // Unknown type - try to list available methods
+            if (debugEnabled) {
+                debugInfo?.append("  [WARNING] Unknown header type for ${sourceName}\n")
+                debugInfo?.append("  [METHODS] Available: ${headers.metaClass.methods*.name.unique().sort()}\n")
+                Trace.warn("[DEBUG] ${sourceName}: Unknown header type - cannot extract")
+                Trace.info("[DEBUG]   Available methods: ${headers.metaClass.methods*.name.unique().sort().take(20)}")
             }
         }
     } catch (Exception e) {
-        Trace.debug("Could not extract headers: " + e.getMessage())
+        def errorMsg = "Could not extract headers from ${sourceName}: ${e.getMessage()}"
+        debugInfo?.append("  [ERROR] ${errorMsg}\n")
+        Trace.error("[DEBUG] ${errorMsg}")
+        if (debugEnabled) {
+            e.printStackTrace()
+        }
     }
 }
 
@@ -409,41 +595,126 @@ def getHeaderValue(Object headers, String headerName) {
 
 def extractQueryParams(Message msg) {
     def params = [:]
+    def debugInfo = new StringBuilder()
 
     try {
         def queryParams = msg.get("param.query")
 
+        if (debugEnabled) {
+            debugInfo.append("=== param.query ===\n")
+            if (queryParams == null) {
+                debugInfo.append("  [NULL] param.query is null\n")
+                Trace.info("[DEBUG] param.query: NULL")
+            } else {
+                debugInfo.append("  [TYPE] ${queryParams.getClass().getName()}\n")
+                Trace.info("[DEBUG] param.query type: ${queryParams.getClass().getName()}")
+            }
+        }
+
         if (queryParams == null) {
             // Try alternative: http.request.querystring
             def queryString = msg.get("http.request.querystring")
+            if (debugEnabled) {
+                debugInfo.append("=== http.request.querystring (fallback) ===\n")
+                if (queryString == null) {
+                    debugInfo.append("  [NULL] http.request.querystring is null\n")
+                    Trace.info("[DEBUG] http.request.querystring: NULL")
+                } else {
+                    debugInfo.append("  [VALUE] ${queryString}\n")
+                    Trace.info("[DEBUG] http.request.querystring: ${queryString}")
+                }
+            }
             if (queryString != null && !queryString.isEmpty()) {
-                return parseQueryString(queryString.toString())
+                params = parseQueryString(queryString.toString())
+                if (debugEnabled) {
+                    debugInfo.append("  [PARSED] ${params}\n")
+                    Trace.info("[DEBUG] Parsed from querystring: ${params}")
+                }
+            }
+            if (debugEnabled) {
+                msg.put("openapi.validation.debug.queryparams", debugInfo.toString())
             }
             return params
         }
 
         if (queryParams instanceof Map) {
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using Map iteration\n")
+                Trace.info("[DEBUG] param.query: Extracting as Map (${queryParams.size()} entries)")
+            }
             queryParams.each { key, value ->
                 def keyStr = key.toString()
                 if (!params.containsKey(keyStr)) {
                     params[keyStr] = []
                 }
                 if (value instanceof List) {
-                    value.each { v -> params[keyStr].add(v?.toString() ?: "") }
+                    value.each { v ->
+                        def vStr = v?.toString() ?: ""
+                        params[keyStr].add(vStr)
+                        if (debugEnabled) {
+                            debugInfo.append("    [MAP-LIST] ${keyStr} += ${vStr}\n")
+                            Trace.info("[DEBUG]   [MAP-LIST] ${keyStr} += ${vStr}")
+                        }
+                    }
                 } else {
-                    params[keyStr].add(value?.toString() ?: "")
+                    def vStr = value?.toString() ?: ""
+                    params[keyStr].add(vStr)
+                    if (debugEnabled) {
+                        debugInfo.append("    [MAP] ${keyStr} = ${vStr}\n")
+                        Trace.info("[DEBUG]   [MAP] ${keyStr} = ${vStr}")
+                    }
                 }
             }
         } else if (queryParams.metaClass.respondsTo(queryParams, "getParameterNames")) {
             // Axway ParameterSet
+            if (debugEnabled) {
+                debugInfo.append("  [EXTRACTION] Using getParameterNames()\n")
+                Trace.info("[DEBUG] param.query: Extracting via getParameterNames() method")
+            }
             def paramNames = queryParams.getParameterNames()
+            if (debugEnabled) {
+                debugInfo.append("  [PARAM_NAMES] Found: ${paramNames}\n")
+                Trace.info("[DEBUG]   Parameter names found: ${paramNames}")
+            }
             paramNames.each { name ->
                 def values = queryParams.getParameterValues(name)
-                params[name.toString()] = values?.collect { it?.toString() ?: "" } ?: [""]
+                def nameStr = name.toString()
+                def valuesList = values?.collect { it?.toString() ?: "" } ?: [""]
+                params[nameStr] = valuesList
+                if (debugEnabled) {
+                    debugInfo.append("    [PARAM] ${nameStr} = ${valuesList}\n")
+                    Trace.info("[DEBUG]   [PARAM] ${nameStr} = ${valuesList}")
+                }
+            }
+        } else {
+            // Unknown type - try to list available methods
+            if (debugEnabled) {
+                debugInfo.append("  [WARNING] Unknown query param type\n")
+                debugInfo.append("  [METHODS] Available: ${queryParams.metaClass.methods*.name.unique().sort()}\n")
+                Trace.warn("[DEBUG] param.query: Unknown type - cannot extract")
+                Trace.info("[DEBUG]   Available methods: ${queryParams.metaClass.methods*.name.unique().sort().take(20)}")
             }
         }
+
+        // Log final query params
+        if (debugEnabled) {
+            debugInfo.append("=== FINAL QUERY PARAMS (${params.size()} total) ===\n")
+            Trace.info("[DEBUG] ========== FINAL QUERY PARAMS (${params.size()} total) ==========")
+            params.each { name, values ->
+                debugInfo.append("  ${name}: ${values}\n")
+                Trace.info("[DEBUG]   ${name}: ${values}")
+            }
+            msg.put("openapi.validation.debug.queryparams", debugInfo.toString())
+        }
+
     } catch (Exception e) {
-        Trace.debug("Could not extract query params: " + e.getMessage())
+        def errorMsg = "Could not extract query params: ${e.getMessage()}"
+        debugInfo.append("  [ERROR] ${errorMsg}\n")
+        Trace.error("[DEBUG] ${errorMsg}")
+        if (debugEnabled) {
+            e.printStackTrace()
+            msg.put("openapi.validation.debug.queryparams", debugInfo.toString())
+        }
     }
 
     return params
