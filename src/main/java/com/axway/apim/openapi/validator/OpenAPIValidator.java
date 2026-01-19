@@ -1,7 +1,6 @@
 package com.axway.apim.openapi.validator;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -86,21 +85,11 @@ public class OpenAPIValidator {
         this.debugInfo = new StringBuilder();
         exposurePath2SpecifiedPathMap.setMaxSize(1000);
 
-        try {
-            // Check if openAPISpec is a valid URL
-            new URI(openAPISpec);
-            Utils.traceMessage("Creating OpenAPIValidator from URL: " + openAPISpec, TraceLevel.INFO);
-            this.validator = buildValidator(
-                OpenApiInteractionValidator.createForSpecificationUrl(openAPISpec),
-                level
-            );
-        } catch (Exception e) {
-            Utils.traceMessage("Creating OpenAPIValidator from inline specification", TraceLevel.INFO);
-            this.validator = buildValidator(
-                OpenApiInteractionValidator.createForInlineApiSpecification(openAPISpec),
-                level
-            );
-        }
+        Utils.traceMessage("Creating OpenAPIValidator from inline specification, level: " + level, TraceLevel.INFO);
+        this.validator = buildValidator(
+            OpenApiInteractionValidator.createForInlineApiSpecification(openAPISpec),
+            level
+        );
     }
 
     // ========================================================================
