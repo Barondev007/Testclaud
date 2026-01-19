@@ -8,16 +8,13 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.atlassian.oai.validator.OpenApiInteractionValidator;
-import com.atlassian.oai.validator.OpenApiInteractionValidator.ApiLoadException;
 import com.atlassian.oai.validator.model.Request;
 import com.atlassian.oai.validator.model.Response;
 import com.atlassian.oai.validator.report.LevelResolver;
@@ -35,7 +32,6 @@ import com.vordel.mime.QueryStringHeaderSet;
  * - Configurable validation levels (LIGHT, LENIENT, STRICT)
  * - Debug mode with detailed logging
  * - Thread-safe validator caching
- * - Multiple attribute name discovery
  * - Path exposure mapping
  *
  * @author Axway
@@ -44,9 +40,6 @@ public class OpenAPIValidator {
 
     // Cache for validators: key = specHash + "|" + validationLevel
     private static final ConcurrentHashMap<String, OpenAPIValidator> validatorCache = new ConcurrentHashMap<>();
-
-    // Cache for API-ID based validators
-    private static final ConcurrentHashMap<String, OpenAPIValidator> apiIdCache = new ConcurrentHashMap<>();
 
     private OpenApiInteractionValidator validator;
     private ValidationLevel validationLevel = ValidationLevel.STRICT;
@@ -84,32 +77,6 @@ public class OpenAPIValidator {
         return getInstance(openAPISpec, ValidationLevel.STRICT);
     }
 
-    /**
-     * Get or create a validator instance for an API-Manager API.
-     */
-    public static synchronized OpenAPIValidator getInstance(String apiId, String username, String password,
-            String apiManagerUrl, boolean useOriginalAPISpec, ValidationLevel level) throws Exception {
-
-        String cacheKey = apiId + "|" + level.getValue();
-
-        if (apiIdCache.containsKey(cacheKey)) {
-            Utils.traceMessage("Using cached instance for API-ID: " + apiId + ", level: " + level, TraceLevel.DEBUG);
-            return apiIdCache.get(cacheKey);
-        }
-
-        OpenAPIValidator validator = new OpenAPIValidator(apiId, username, password, apiManagerUrl, useOriginalAPISpec, level);
-        apiIdCache.put(cacheKey, validator);
-        Utils.traceMessage("Created OpenAPI validator for API-ID: " + apiId + ", level: " + level, TraceLevel.DEBUG);
-        return validator;
-    }
-
-    /**
-     * Get or create a validator instance for an API-Manager API with default settings.
-     */
-    public static synchronized OpenAPIValidator getInstance(String apiId, String username, String password) throws Exception {
-        return getInstance(apiId, username, password, "https://localhost:8075", false, ValidationLevel.STRICT);
-    }
-
     // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
@@ -133,32 +100,6 @@ public class OpenAPIValidator {
                 OpenApiInteractionValidator.createForInlineApiSpecification(openAPISpec),
                 level
             );
-        }
-    }
-
-    private OpenAPIValidator(String apiId, String username, String password, String apiManagerUrl,
-            boolean useOriginalAPISpec, ValidationLevel level) throws Exception {
-        this.validationLevel = level;
-        this.debugInfo = new StringBuilder();
-        exposurePath2SpecifiedPathMap.setMaxSize(1000);
-
-        try {
-            Utils.traceMessage("Creating OpenAPIValidator for API-ID: " + apiId + ", level: " + level, TraceLevel.INFO);
-            APIManagerSchemaProvider schemaProvider = new APIManagerSchemaProvider(apiManagerUrl, username, password);
-            schemaProvider.setUseOriginalAPISpec(useOriginalAPISpec);
-            String apiSpecification = schemaProvider.getSchema(apiId);
-
-            this.validator = buildValidator(
-                OpenApiInteractionValidator.createForInlineApiSpecification(apiSpecification)
-                    .withResolveCombinators(true),
-                level
-            );
-        } catch (ApiLoadException e) {
-            Utils.traceMessage("API-Specification not compatible with validator", e, TraceLevel.ERROR);
-            throw e;
-        } catch (Exception e) {
-            Utils.traceMessage("Error creating validator for API-ID: " + apiId, e, TraceLevel.ERROR);
-            throw e;
         }
     }
 
@@ -504,14 +445,13 @@ public class OpenAPIValidator {
      */
     public static void clearCache() {
         validatorCache.clear();
-        apiIdCache.clear();
     }
 
     /**
      * Get the cache size.
      */
     public static int getCacheSize() {
-        return validatorCache.size() + apiIdCache.size();
+        return validatorCache.size();
     }
 
     // ========================================================================
