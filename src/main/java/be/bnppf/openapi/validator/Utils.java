@@ -1,4 +1,4 @@
-package com.axway.apim.openapi.validator;
+package be.bnppf.openapi.validator;
 
 import com.vordel.mime.HeaderSet;
 import com.vordel.trace.Trace;

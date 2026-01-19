@@ -1,6 +1,6 @@
-import com.axway.apim.openapi.validator.OpenAPIValidator
-import com.axway.apim.openapi.validator.ValidationLevel
-import com.axway.apim.openapi.validator.ValidationResult
+import be.bnppf.openapi.validator.OpenAPIValidator
+import be.bnppf.openapi.validator.ValidationLevel
+import be.bnppf.openapi.validator.ValidationResult
 import com.vordel.mime.HeaderSet
 import com.vordel.mime.QueryStringHeaderSet
 import com.vordel.mime.Body

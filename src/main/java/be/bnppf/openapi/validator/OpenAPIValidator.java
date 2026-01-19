@@ -1,4 +1,4 @@
-package com.axway.apim.openapi.validator;
+package be.bnppf.openapi.validator;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -20,7 +20,7 @@ import com.atlassian.oai.validator.report.LevelResolver;
 import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 import com.atlassian.oai.validator.report.ValidationReport.Message;
-import com.axway.apim.openapi.validator.Utils.TraceLevel;
+import be.bnppf.openapi.validator.Utils.TraceLevel;
 import com.vordel.mime.HeaderSet;
 import com.vordel.mime.QueryStringHeaderSet;
 

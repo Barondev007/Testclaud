@@ -1,4 +1,4 @@
-package com.axway.apim.openapi.validator;
+package be.bnppf.openapi.validator;
 
 /**
  * Validation levels for OpenAPI validation.

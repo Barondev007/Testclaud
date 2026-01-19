@@ -4,12 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.axway.apim</groupId>
+    <groupId>be.bnppf</groupId>
     <artifactId>openapi-validator</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Axway OpenAPI Validator</name>
+    <name>BNPPF OpenAPI Validator</name>
     <description>OpenAPI Request/Response Validator for Axway API Gateway</description>
 
     <properties>

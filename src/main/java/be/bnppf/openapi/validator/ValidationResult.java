@@ -1,4 +1,4 @@
-package com.axway.apim.openapi.validator;
+package be.bnppf.openapi.validator;
 
 import com.atlassian.oai.validator.report.ValidationReport;
 
