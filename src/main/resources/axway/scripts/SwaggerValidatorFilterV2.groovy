@@ -460,38 +460,97 @@ def mergeHeaders(Message msg) {
     def mergedHeaders = [:]
     def debugInfo = new StringBuilder()
 
-    // Get main headers (http.header)
-    def httpHeaders = msg.get("http.header")
+    // List of possible attribute names for headers in Axway
+    def headerAttributeNames = [
+        "http.headers",
+        "http.header",
+        "http.request.headers",
+        "headers",
+        "content.headers",
+        "http.content.header"
+    ]
+
     if (debugEnabled) {
-        debugInfo.append("=== http.header ===\n")
-        if (httpHeaders == null) {
-            debugInfo.append("  [NULL] http.header is null\n")
-            Trace.info("[DEBUG] http.header: NULL")
-        } else {
-            debugInfo.append("  [TYPE] ${httpHeaders.getClass().getName()}\n")
-            Trace.info("[DEBUG] http.header type: ${httpHeaders.getClass().getName()}")
+        debugInfo.append("=== SEARCHING FOR HEADERS ===\n")
+        Trace.info("[DEBUG] ========== SEARCHING FOR HEADERS ==========")
+    }
+
+    // Try each possible attribute name
+    for (attrName in headerAttributeNames) {
+        def headerObj = msg.get(attrName)
+        if (debugEnabled) {
+            if (headerObj == null) {
+                debugInfo.append("  [TRY] ${attrName} = NULL\n")
+                Trace.info("[DEBUG]   ${attrName} = NULL")
+            } else {
+                debugInfo.append("  [FOUND] ${attrName} = ${headerObj.getClass().getName()}\n")
+                Trace.info("[DEBUG]   [FOUND] ${attrName} type: ${headerObj.getClass().getName()}")
+            }
+        }
+        if (headerObj != null && mergedHeaders.isEmpty()) {
+            extractHeadersToMap(headerObj, mergedHeaders, attrName, debugInfo)
         }
     }
 
-    if (httpHeaders != null) {
-        extractHeadersToMap(httpHeaders, mergedHeaders, "http.header", debugInfo)
-    }
+    // Also try to access headers directly from Message object methods
+    if (mergedHeaders.isEmpty()) {
+        if (debugEnabled) {
+            debugInfo.append("=== TRYING MESSAGE OBJECT METHODS ===\n")
+            Trace.info("[DEBUG] Trying Message object methods for headers")
+        }
 
-    // Get extra headers (http.content.header) and merge
-    def contentHeaders = msg.get("http.content.header")
-    if (debugEnabled) {
-        debugInfo.append("=== http.content.header ===\n")
-        if (contentHeaders == null) {
-            debugInfo.append("  [NULL] http.content.header is null\n")
-            Trace.info("[DEBUG] http.content.header: NULL")
-        } else {
-            debugInfo.append("  [TYPE] ${contentHeaders.getClass().getName()}\n")
-            Trace.info("[DEBUG] http.content.header type: ${contentHeaders.getClass().getName()}")
+        // Try msg.getHeaders() if available
+        if (msg.metaClass.respondsTo(msg, "getHeaders")) {
+            try {
+                def hdrs = msg.getHeaders()
+                if (hdrs != null) {
+                    if (debugEnabled) {
+                        debugInfo.append("  [FOUND] msg.getHeaders() = ${hdrs.getClass().getName()}\n")
+                        Trace.info("[DEBUG]   [FOUND] msg.getHeaders() type: ${hdrs.getClass().getName()}")
+                    }
+                    extractHeadersToMap(hdrs, mergedHeaders, "msg.getHeaders()", debugInfo)
+                }
+            } catch (Exception e) {
+                if (debugEnabled) {
+                    debugInfo.append("  [ERROR] msg.getHeaders(): ${e.getMessage()}\n")
+                }
+            }
+        }
+
+        // Try to list all available attributes on msg for debugging
+        if (debugEnabled && mergedHeaders.isEmpty()) {
+            debugInfo.append("=== LISTING MESSAGE PROPERTIES ===\n")
+            Trace.info("[DEBUG] Listing Message object properties")
+            try {
+                // Try to get all property names
+                if (msg.metaClass.respondsTo(msg, "getPropertyNames")) {
+                    def propNames = msg.getPropertyNames()
+                    debugInfo.append("  [PROPS] ${propNames}\n")
+                    Trace.info("[DEBUG]   Properties: ${propNames}")
+                }
+                // List methods
+                def methods = msg.metaClass.methods*.name.unique().sort()
+                debugInfo.append("  [METHODS] ${methods.take(30)}\n")
+                Trace.info("[DEBUG]   Methods: ${methods.take(30)}")
+            } catch (Exception e) {
+                debugInfo.append("  [ERROR] Cannot list properties: ${e.getMessage()}\n")
+            }
         }
     }
 
-    if (contentHeaders != null) {
-        extractHeadersToMap(contentHeaders, mergedHeaders, "http.content.header", debugInfo)
+    // Get extra headers (http.content.header) and merge - try additional names too
+    def extraHeaderNames = ["http.content.header", "content.header", "http.content.headers"]
+    for (attrName in extraHeaderNames) {
+        def contentHeaders = msg.get(attrName)
+        if (contentHeaders != null) {
+            if (debugEnabled) {
+                debugInfo.append("=== EXTRA HEADERS: ${attrName} ===\n")
+                debugInfo.append("  [TYPE] ${contentHeaders.getClass().getName()}\n")
+                Trace.info("[DEBUG] Extra headers from ${attrName}: ${contentHeaders.getClass().getName()}")
+            }
+            extractHeadersToMap(contentHeaders, mergedHeaders, attrName, debugInfo)
+            break
+        }
     }
 
     // Log final merged headers
@@ -598,51 +657,154 @@ def extractQueryParams(Message msg) {
     def debugInfo = new StringBuilder()
 
     try {
-        def queryParams = msg.get("param.query")
+        // List of possible attribute names for query params in Axway
+        def queryParamAttributeNames = [
+            "param.query",
+            "params",
+            "http.querystring",
+            "http.request.querystring",
+            "query.params",
+            "queryParams",
+            "http.request.uri.query"
+        ]
 
         if (debugEnabled) {
-            debugInfo.append("=== param.query ===\n")
-            if (queryParams == null) {
-                debugInfo.append("  [NULL] param.query is null\n")
-                Trace.info("[DEBUG] param.query: NULL")
-            } else {
-                debugInfo.append("  [TYPE] ${queryParams.getClass().getName()}\n")
-                Trace.info("[DEBUG] param.query type: ${queryParams.getClass().getName()}")
+            debugInfo.append("=== SEARCHING FOR QUERY PARAMS ===\n")
+            Trace.info("[DEBUG] ========== SEARCHING FOR QUERY PARAMS ==========")
+        }
+
+        def foundQueryParams = null
+        def foundAttrName = null
+
+        // Try each possible attribute name
+        for (attrName in queryParamAttributeNames) {
+            def queryObj = msg.get(attrName)
+            if (debugEnabled) {
+                if (queryObj == null) {
+                    debugInfo.append("  [TRY] ${attrName} = NULL\n")
+                    Trace.info("[DEBUG]   ${attrName} = NULL")
+                } else {
+                    debugInfo.append("  [FOUND] ${attrName} = ${queryObj.getClass().getName()}\n")
+                    Trace.info("[DEBUG]   [FOUND] ${attrName} type: ${queryObj.getClass().getName()}")
+                }
+            }
+            if (queryObj != null && foundQueryParams == null) {
+                foundQueryParams = queryObj
+                foundAttrName = attrName
             }
         }
 
-        if (queryParams == null) {
-            // Try alternative: http.request.querystring
-            def queryString = msg.get("http.request.querystring")
-            if (debugEnabled) {
-                debugInfo.append("=== http.request.querystring (fallback) ===\n")
-                if (queryString == null) {
-                    debugInfo.append("  [NULL] http.request.querystring is null\n")
-                    Trace.info("[DEBUG] http.request.querystring: NULL")
-                } else {
-                    debugInfo.append("  [VALUE] ${queryString}\n")
-                    Trace.info("[DEBUG] http.request.querystring: ${queryString}")
-                }
-            }
-            if (queryString != null && !queryString.isEmpty()) {
-                params = parseQueryString(queryString.toString())
+        // Also try to get query string from URI
+        if (foundQueryParams == null) {
+            def uri = msg.get("http.request.uri")
+            if (uri != null) {
                 if (debugEnabled) {
-                    debugInfo.append("  [PARSED] ${params}\n")
-                    Trace.info("[DEBUG] Parsed from querystring: ${params}")
+                    debugInfo.append("  [TRY] http.request.uri = ${uri}\n")
+                    Trace.info("[DEBUG]   http.request.uri = ${uri}")
+                }
+                def uriStr = uri.toString()
+                def queryIdx = uriStr.indexOf('?')
+                if (queryIdx >= 0 && queryIdx < uriStr.length() - 1) {
+                    foundQueryParams = uriStr.substring(queryIdx + 1)
+                    foundAttrName = "http.request.uri (parsed)"
+                    if (debugEnabled) {
+                        debugInfo.append("  [PARSED] Query from URI: ${foundQueryParams}\n")
+                        Trace.info("[DEBUG]   Parsed query from URI: ${foundQueryParams}")
+                    }
                 }
             }
+        }
+
+        // Try Message object methods
+        if (foundQueryParams == null) {
             if (debugEnabled) {
+                debugInfo.append("=== TRYING MESSAGE OBJECT METHODS ===\n")
+                Trace.info("[DEBUG] Trying Message object methods for query params")
+            }
+
+            if (msg.metaClass.respondsTo(msg, "getQueryString")) {
+                try {
+                    def qs = msg.getQueryString()
+                    if (qs != null) {
+                        foundQueryParams = qs
+                        foundAttrName = "msg.getQueryString()"
+                        if (debugEnabled) {
+                            debugInfo.append("  [FOUND] msg.getQueryString() = ${qs}\n")
+                            Trace.info("[DEBUG]   [FOUND] msg.getQueryString() = ${qs}")
+                        }
+                    }
+                } catch (Exception e) {
+                    if (debugEnabled) {
+                        debugInfo.append("  [ERROR] msg.getQueryString(): ${e.getMessage()}\n")
+                    }
+                }
+            }
+
+            if (msg.metaClass.respondsTo(msg, "getParameters")) {
+                try {
+                    def prms = msg.getParameters()
+                    if (prms != null) {
+                        foundQueryParams = prms
+                        foundAttrName = "msg.getParameters()"
+                        if (debugEnabled) {
+                            debugInfo.append("  [FOUND] msg.getParameters() = ${prms.getClass().getName()}\n")
+                            Trace.info("[DEBUG]   [FOUND] msg.getParameters() type: ${prms.getClass().getName()}")
+                        }
+                    }
+                } catch (Exception e) {
+                    if (debugEnabled) {
+                        debugInfo.append("  [ERROR] msg.getParameters(): ${e.getMessage()}\n")
+                    }
+                }
+            }
+        }
+
+        // Process the found query params
+        if (foundQueryParams == null) {
+            if (debugEnabled) {
+                debugInfo.append("=== NO QUERY PARAMS FOUND ===\n")
+                Trace.info("[DEBUG] No query params found in any attribute")
+
+                // List available message properties for debugging
+                debugInfo.append("=== LISTING MESSAGE PROPERTIES ===\n")
+                Trace.info("[DEBUG] Listing Message object properties")
+                try {
+                    if (msg.metaClass.respondsTo(msg, "getPropertyNames")) {
+                        def propNames = msg.getPropertyNames()
+                        debugInfo.append("  [PROPS] ${propNames}\n")
+                        Trace.info("[DEBUG]   Properties: ${propNames}")
+                    }
+                    def methods = msg.metaClass.methods*.name.unique().sort()
+                    debugInfo.append("  [METHODS] ${methods.take(30)}\n")
+                    Trace.info("[DEBUG]   Methods: ${methods.take(30)}")
+                } catch (Exception e) {
+                    debugInfo.append("  [ERROR] Cannot list: ${e.getMessage()}\n")
+                }
+
                 msg.put("openapi.validation.debug.queryparams", debugInfo.toString())
             }
             return params
         }
 
-        if (queryParams instanceof Map) {
+        // Process based on type
+        if (debugEnabled) {
+            debugInfo.append("=== EXTRACTING FROM: ${foundAttrName} ===\n")
+            Trace.info("[DEBUG] Extracting query params from: ${foundAttrName}")
+        }
+
+        if (foundQueryParams instanceof String) {
+            // It's a query string, parse it
+            params = parseQueryString(foundQueryParams.toString())
+            if (debugEnabled) {
+                debugInfo.append("  [PARSED] String query: ${params}\n")
+                Trace.info("[DEBUG]   Parsed string query: ${params}")
+            }
+        } else if (foundQueryParams instanceof Map) {
             if (debugEnabled) {
                 debugInfo.append("  [EXTRACTION] Using Map iteration\n")
-                Trace.info("[DEBUG] param.query: Extracting as Map (${queryParams.size()} entries)")
+                Trace.info("[DEBUG]   Extracting as Map (${foundQueryParams.size()} entries)")
             }
-            queryParams.each { key, value ->
+            foundQueryParams.each { key, value ->
                 def keyStr = key.toString()
                 if (!params.containsKey(keyStr)) {
                     params[keyStr] = []
@@ -653,7 +815,7 @@ def extractQueryParams(Message msg) {
                         params[keyStr].add(vStr)
                         if (debugEnabled) {
                             debugInfo.append("    [MAP-LIST] ${keyStr} += ${vStr}\n")
-                            Trace.info("[DEBUG]   [MAP-LIST] ${keyStr} += ${vStr}")
+                            Trace.info("[DEBUG]     [MAP-LIST] ${keyStr} += ${vStr}")
                         }
                     }
                 } else {
@@ -661,38 +823,41 @@ def extractQueryParams(Message msg) {
                     params[keyStr].add(vStr)
                     if (debugEnabled) {
                         debugInfo.append("    [MAP] ${keyStr} = ${vStr}\n")
-                        Trace.info("[DEBUG]   [MAP] ${keyStr} = ${vStr}")
+                        Trace.info("[DEBUG]     [MAP] ${keyStr} = ${vStr}")
                     }
                 }
             }
-        } else if (queryParams.metaClass.respondsTo(queryParams, "getParameterNames")) {
+        } else if (foundQueryParams.metaClass.respondsTo(foundQueryParams, "getParameterNames")) {
             // Axway ParameterSet
             if (debugEnabled) {
                 debugInfo.append("  [EXTRACTION] Using getParameterNames()\n")
-                Trace.info("[DEBUG] param.query: Extracting via getParameterNames() method")
+                Trace.info("[DEBUG]   Extracting via getParameterNames() method")
             }
-            def paramNames = queryParams.getParameterNames()
+            def paramNames = foundQueryParams.getParameterNames()
             if (debugEnabled) {
                 debugInfo.append("  [PARAM_NAMES] Found: ${paramNames}\n")
-                Trace.info("[DEBUG]   Parameter names found: ${paramNames}")
+                Trace.info("[DEBUG]     Parameter names found: ${paramNames}")
             }
             paramNames.each { name ->
-                def values = queryParams.getParameterValues(name)
+                def values = foundQueryParams.getParameterValues(name)
                 def nameStr = name.toString()
                 def valuesList = values?.collect { it?.toString() ?: "" } ?: [""]
                 params[nameStr] = valuesList
                 if (debugEnabled) {
                     debugInfo.append("    [PARAM] ${nameStr} = ${valuesList}\n")
-                    Trace.info("[DEBUG]   [PARAM] ${nameStr} = ${valuesList}")
+                    Trace.info("[DEBUG]     [PARAM] ${nameStr} = ${valuesList}")
                 }
             }
         } else {
-            // Unknown type - try to list available methods
+            // Unknown type - try toString and parse
             if (debugEnabled) {
-                debugInfo.append("  [WARNING] Unknown query param type\n")
-                debugInfo.append("  [METHODS] Available: ${queryParams.metaClass.methods*.name.unique().sort()}\n")
-                Trace.warn("[DEBUG] param.query: Unknown type - cannot extract")
-                Trace.info("[DEBUG]   Available methods: ${queryParams.metaClass.methods*.name.unique().sort().take(20)}")
+                debugInfo.append("  [WARNING] Unknown type, trying toString()\n")
+                debugInfo.append("  [METHODS] Available: ${foundQueryParams.metaClass.methods*.name.unique().sort().take(20)}\n")
+                Trace.warn("[DEBUG]   Unknown type - trying toString()")
+            }
+            def qs = foundQueryParams.toString()
+            if (qs && !qs.isEmpty()) {
+                params = parseQueryString(qs)
             }
         }
 
