@@ -101,7 +101,7 @@ Without validation, invalid requests can cause errors, security issues, or unexp
 │  │ Request │    │           │              │    │                     │  │
 │  │         │    │           ▼              │    │                     │  │
 │  └─────────┘    │  ┌─────────────────┐     │    └─────────────────────┘  │
-│                 │  │ OpenAPIValidator│     │                             │
+│                 │  │ BnppfOpenAPIValidator│     │                             │
 │                 │  │   (Java JAR)    │     │                             │
 │                 │  └─────────────────┘     │                             │
 │                 └──────────────────────────┘                             │
@@ -117,7 +117,7 @@ Without validation, invalid requests can cause errors, security issues, or unexp
 │                     (be.bnppf.openapi.validator)                       │
 │                                                                        │
 │   ┌────────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
-│   │  OpenAPIValidator  │  │ ValidationLevel  │  │ ValidationResult │   │
+│   │  BnppfOpenAPIValidator  │  │ ValidationLevel  │  │ ValidationResult │   │
 │   │  ────────────────  │  │ ───────────────  │  │ ───────────────  │   │
 │   │  • Parses spec     │  │ • LIGHT          │  │ • isValid()      │   │
 │   │  • Validates req   │  │ • LENIENT        │  │ • isBlocked()    │   │
@@ -581,7 +581,7 @@ paths:
 ### Example 3: Groovy Script Integration
 
 ```groovy
-import be.bnppf.openapi.validator.OpenAPIValidator
+import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
 
@@ -591,7 +591,7 @@ def levelStr = msg.get("openapi.validation.level") ?: "LENIENT"
 def level = ValidationLevel.fromString(levelStr)
 
 // Get or create validator (cached)
-def validator = OpenAPIValidator.getInstance(spec, level, true)
+def validator = BnppfOpenAPIValidator.getInstance(spec, level, true)
 
 // Get request details
 def method = http.getVerb()
@@ -628,7 +628,7 @@ return true  // Continue to backend
 │                    TROUBLESHOOTING GUIDE                               │
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                        │
-│  ISSUE: "ClassNotFoundException: OpenAPIValidator"                     │
+│  ISSUE: "ClassNotFoundException: BnppfOpenAPIValidator"                     │
 │  ┌──────────────────────────────────────────────────────────────────┐ │
 │  │ CAUSE: JAR not in classpath                                      │ │
 │  │ FIX:   Copy openapi-validator-1.0.0.jar to $AXWAY_HOME/ext/lib/  │ │
@@ -727,12 +727,12 @@ if (!result.isValid()) {
 │    openapi.validation.level → LIGHT | LENIENT | STRICT                 │
 │                                                                        │
 │  JAVA CLASSES:                                                         │
-│    be.bnppf.openapi.validator.OpenAPIValidator                         │
+│    be.bnppf.openapi.validator.BnppfOpenAPIValidator                         │
 │    be.bnppf.openapi.validator.ValidationLevel                          │
 │    be.bnppf.openapi.validator.ValidationResult                         │
 │                                                                        │
 │  KEY METHODS:                                                          │
-│    OpenAPIValidator.getInstance(spec, level, cache)                    │
+│    BnppfOpenAPIValidator.getInstance(spec, level, cache)                    │
 │    validator.isValidRequest(method, path, headers, params, body)       │
 │    result.isValid() / result.isBlocked() / result.getErrors()          │
 │                                                                        │

@@ -10,7 +10,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class OpenAPIValidatorTest {
+class BnppfOpenAPIValidatorTest {
 
     private static final String SAMPLE_SPEC = "openapi: 3.0.0\n" +
             "info:\n" +
@@ -83,12 +83,12 @@ class OpenAPIValidatorTest {
     @BeforeEach
     void setUp() {
         // Clear cache before each test to ensure clean state
-        OpenAPIValidator.clearCache();
+        BnppfOpenAPIValidator.clearCache();
     }
 
     @Test
     void testGetInstanceCreatesValidator() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
         assertNotNull(validator);
         assertEquals(ValidationLevel.STRICT, validator.getValidationLevel());
     }
@@ -96,15 +96,15 @@ class OpenAPIValidatorTest {
     @ParameterizedTest
     @EnumSource(ValidationLevel.class)
     void testGetInstanceWithDifferentLevels(ValidationLevel level) {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, level);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, level);
         assertNotNull(validator);
         assertEquals(level, validator.getValidationLevel());
     }
 
     @Test
     void testValidatorCaching() {
-        OpenAPIValidator v1 = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
-        OpenAPIValidator v2 = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator v1 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator v2 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         // Should be the same cached instance
         assertSame(v1, v2);
@@ -112,8 +112,8 @@ class OpenAPIValidatorTest {
 
     @Test
     void testDifferentLevelsNotCachedTogether() {
-        OpenAPIValidator strict = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
-        OpenAPIValidator lenient = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LENIENT);
+        BnppfOpenAPIValidator strict = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator lenient = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LENIENT);
 
         // Should be different instances
         assertNotSame(strict, lenient);
@@ -121,20 +121,20 @@ class OpenAPIValidatorTest {
 
     @Test
     void testClearCache() {
-        OpenAPIValidator v1 = OpenAPIValidator.getInstance(SAMPLE_SPEC);
-        assertTrue(OpenAPIValidator.getCacheSize() > 0);
+        BnppfOpenAPIValidator v1 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
+        assertTrue(BnppfOpenAPIValidator.getCacheSize() > 0);
 
-        OpenAPIValidator.clearCache();
-        assertEquals(0, OpenAPIValidator.getCacheSize());
+        BnppfOpenAPIValidator.clearCache();
+        assertEquals(0, BnppfOpenAPIValidator.getCacheSize());
 
-        OpenAPIValidator v2 = OpenAPIValidator.getInstance(SAMPLE_SPEC);
+        BnppfOpenAPIValidator v2 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
         // After clearing cache, should get a new instance
         assertNotSame(v1, v2);
     }
 
     @Test
     void testValidRequestGetUsers() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         ValidationResult result = validator.validateRequest(
                 null,           // no body for GET
@@ -150,7 +150,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testValidRequestPostUser() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\"}";
 
@@ -171,7 +171,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testInvalidRequestMissingRequiredField() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         // Missing required 'email' field
         String body = "{\"name\": \"John Doe\"}";
@@ -194,7 +194,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testInvalidRequestAdditionalPropertiesStrict() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         // Body with additional property 'age' not in schema
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"age\": 30}";
@@ -216,7 +216,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testAdditionalPropertiesAllowedInLenientMode() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LENIENT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LENIENT);
 
         // Body with additional property 'age' not in schema
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"age\": 30}";
@@ -238,7 +238,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testLightModeDoesNotBlock() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LIGHT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LIGHT);
 
         // Missing required 'email' field - would normally block
         String body = "{\"name\": \"John Doe\"}";
@@ -262,7 +262,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testValidResponseValidation() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "[{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}]";
 
@@ -283,7 +283,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testInvalidResponseWrongStatusCode() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}";
 
@@ -304,7 +304,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testIsValidRequestSimple() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         boolean valid = validator.isValidRequest(
                 null,
@@ -319,7 +319,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testIsValidResponseSimple() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         HeaderSet headers = new HeaderSet();
         headers.setHeader("Content-Type", "application/json");
@@ -337,7 +337,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testDebugMode() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
         validator.setDebugEnabled(true);
 
         assertTrue(validator.isDebugEnabled());
@@ -356,7 +356,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testSetPayloadLogMaxLength() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
 
         validator.setPayloadLogMaxLength(100);
         assertEquals(100, validator.getPayloadLogMaxLength());
@@ -367,7 +367,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testSetDecodeQueryParams() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
 
         assertTrue(validator.isDecodeQueryParams()); // default is true
 
@@ -377,7 +377,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testPathNotFoundValidation() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         ValidationResult result = validator.validateRequest(
                 null,
@@ -394,7 +394,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testGetUsersWithQueryParams() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         QueryStringHeaderSet queryParams = new QueryStringHeaderSet("limit=10");
 
@@ -411,7 +411,7 @@ class OpenAPIValidatorTest {
 
     @Test
     void testGetUserById() {
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         ValidationResult result = validator.validateRequest(
                 null,

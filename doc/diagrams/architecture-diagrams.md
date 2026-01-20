@@ -39,7 +39,7 @@ flowchart LR
 
 ```mermaid
 classDiagram
-    class OpenAPIValidator {
+    class BnppfOpenAPIValidator {
         -validator: OpenApiInteractionValidator
         -validationLevel: ValidationLevel
         +getInstance(spec, level, cache)
@@ -70,9 +70,9 @@ classDiagram
         +generateCacheKey(spec, level)
     }
 
-    OpenAPIValidator --> ValidationLevel : uses
-    OpenAPIValidator --> ValidationResult : returns
-    OpenAPIValidator --> Utils : uses
+    BnppfOpenAPIValidator --> ValidationLevel : uses
+    BnppfOpenAPIValidator --> ValidationResult : returns
+    BnppfOpenAPIValidator --> Utils : uses
 ```
 
 ---
@@ -84,7 +84,7 @@ sequenceDiagram
     participant Client
     participant Gateway as Axway Gateway
     participant Script as Groovy Script
-    participant Validator as OpenAPIValidator
+    participant Validator as BnppfOpenAPIValidator
     participant Backend
 
     Client->>Gateway: HTTP Request

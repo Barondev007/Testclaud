@@ -1,6 +1,6 @@
 package be.bnppf.openapi.validator.cli;
 
-import be.bnppf.openapi.validator.OpenAPIValidator;
+import be.bnppf.openapi.validator.BnppfOpenAPIValidator;
 import be.bnppf.openapi.validator.ValidationLevel;
 import be.bnppf.openapi.validator.ValidationResult;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -138,8 +138,8 @@ public class ValidatorCLI {
         long startTime = System.currentTimeMillis();
 
         try {
-            // Use OpenAPIValidator from axway-validator
-            OpenAPIValidator validator = OpenAPIValidator.getInstance(specContent, level);
+            // Use BnppfOpenAPIValidator from axway-validator
+            BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(specContent, level);
             long elapsed = System.currentTimeMillis() - startTime;
 
             printSuccess("Specification loaded successfully!");
@@ -310,7 +310,7 @@ public class ValidatorCLI {
         String specContent = loadSpecFile(specFile);
 
         printInfo("Loading specification...");
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(specContent, level);
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(specContent, level);
 
         if (verbose) {
             validator.setDebugEnabled(true);
@@ -322,7 +322,7 @@ public class ValidatorCLI {
         // Add Content-Type header
         addToMultiMap(headers, "Content-Type", contentType);
 
-        // Validate request using OpenAPIValidator with standard Java types
+        // Validate request using BnppfOpenAPIValidator with standard Java types
         printInfo("Validating request...");
         ValidationResult result = validator.validateRequest(body, method, path, queryParams, headers);
 
@@ -405,7 +405,7 @@ public class ValidatorCLI {
     }
 
     /**
-     * Print validation result from OpenAPIValidator
+     * Print validation result from BnppfOpenAPIValidator
      */
     private static void printValidationResult(ValidationResult result, String type) {
         List<String> errors = result.getErrors();

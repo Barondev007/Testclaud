@@ -32,12 +32,12 @@ This will create an uber-JAR with all dependencies in `target/openapi-validator-
 ## Usage in Groovy Script
 
 ```groovy
-import com.axway.apim.openapi.validator.OpenAPIValidator
-import com.axway.apim.openapi.validator.ValidationLevel
-import com.axway.apim.openapi.validator.ValidationResult
+import be.bnppf.openapi.validator.BnppfOpenAPIValidator
+import be.bnppf.openapi.validator.ValidationLevel
+import be.bnppf.openapi.validator.ValidationResult
 
 // Get validator instance (cached)
-def validator = OpenAPIValidator.getInstance(specContent, ValidationLevel.LENIENT)
+def validator = BnppfOpenAPIValidator.getInstance(specContent, ValidationLevel.LENIENT)
 
 // Validate request
 ValidationResult result = validator.validateRequest(body, verb, path, queryParams, headers)
@@ -86,7 +86,7 @@ if (result.isBlocked()) {
 
 ## Java Classes
 
-- `OpenAPIValidator` - Main validator class
+- `BnppfOpenAPIValidator` - Main validator class
 - `ValidationLevel` - Enum for validation levels
 - `ValidationResult` - Validation result holder
 - `Utils` - Utility methods

@@ -35,10 +35,10 @@ import com.vordel.mime.QueryStringHeaderSet;
  *
  * @author Axway
  */
-public class OpenAPIValidator {
+public class BnppfOpenAPIValidator {
 
     // Cache for validators: key = specHash + "|" + validationLevel
-    private static final ConcurrentHashMap<String, OpenAPIValidator> validatorCache = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, BnppfOpenAPIValidator> validatorCache = new ConcurrentHashMap<>();
 
     private OpenApiInteractionValidator validator;
     private ValidationLevel validationLevel = ValidationLevel.STRICT;
@@ -58,21 +58,21 @@ public class OpenAPIValidator {
      *
      * @param openAPISpec  The OpenAPI specification (YAML/JSON content or URL)
      * @param level        The validation level
-     * @return OpenAPIValidator instance
+     * @return BnppfOpenAPIValidator instance
      */
-    public static synchronized OpenAPIValidator getInstance(String openAPISpec, ValidationLevel level) {
+    public static synchronized BnppfOpenAPIValidator getInstance(String openAPISpec, ValidationLevel level) {
         String cacheKey = hashSpec(openAPISpec) + "|" + level.getValue();
 
         return validatorCache.computeIfAbsent(cacheKey, key -> {
-            Utils.traceMessage("Creating new OpenAPIValidator instance for level: " + level, TraceLevel.INFO);
-            return new OpenAPIValidator(openAPISpec, level);
+            Utils.traceMessage("Creating new BnppfOpenAPIValidator instance for level: " + level, TraceLevel.INFO);
+            return new BnppfOpenAPIValidator(openAPISpec, level);
         });
     }
 
     /**
      * Get or create a validator instance with default STRICT level.
      */
-    public static synchronized OpenAPIValidator getInstance(String openAPISpec) {
+    public static synchronized BnppfOpenAPIValidator getInstance(String openAPISpec) {
         return getInstance(openAPISpec, ValidationLevel.STRICT);
     }
 
@@ -80,12 +80,12 @@ public class OpenAPIValidator {
     // CONSTRUCTORS
     // ========================================================================
 
-    private OpenAPIValidator(String openAPISpec, ValidationLevel level) {
+    private BnppfOpenAPIValidator(String openAPISpec, ValidationLevel level) {
         this.validationLevel = level;
         this.debugInfo = new StringBuilder();
         exposurePath2SpecifiedPathMap.setMaxSize(1000);
 
-        Utils.traceMessage("Creating OpenAPIValidator from inline specification, level: " + level, TraceLevel.INFO);
+        Utils.traceMessage("Creating BnppfOpenAPIValidator from inline specification, level: " + level, TraceLevel.INFO);
         this.validator = buildValidator(
             OpenApiInteractionValidator.createForInlineApiSpecification(openAPISpec),
             level

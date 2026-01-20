@@ -44,7 +44,7 @@ cp src/main/resources/axway/scripts/SwaggerValidatorFilterV3.groovy \
 
 ```
 be.bnppf.openapi.validator
-├── OpenAPIValidator    # Main validator
+├── BnppfOpenAPIValidator    # Main validator
 ├── ValidationLevel     # Enum: LIGHT, LENIENT, STRICT
 ├── ValidationResult    # Validation outcome
 └── Utils               # Helper utilities
@@ -54,7 +54,7 @@ be.bnppf.openapi.validator
 
 ```java
 // Get cached validator instance
-OpenAPIValidator validator = OpenAPIValidator.getInstance(
+BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(
     String openAPISpec,        // OpenAPI spec as string
     ValidationLevel level,     // LIGHT, LENIENT, or STRICT
     boolean useCache          // true for production
@@ -107,7 +107,7 @@ STRICT:
 ## Groovy Script Template
 
 ```groovy
-import be.bnppf.openapi.validator.OpenAPIValidator
+import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
 import com.vordel.trace.Trace
@@ -119,7 +119,7 @@ def level = ValidationLevel.fromString(
 )
 
 // Get validator (cached)
-def validator = OpenAPIValidator.getInstance(spec, level, true)
+def validator = BnppfOpenAPIValidator.getInstance(spec, level, true)
 
 // Extract request details
 def method = http.getVerb()
@@ -216,7 +216,7 @@ axway-validator/
 ├── src/
 │   ├── main/
 │   │   ├── java/be/bnppf/openapi/validator/
-│   │   │   ├── OpenAPIValidator.java
+│   │   │   ├── BnppfOpenAPIValidator.java
 │   │   │   ├── ValidationLevel.java
 │   │   │   ├── ValidationResult.java
 │   │   │   └── Utils.java
@@ -224,7 +224,7 @@ axway-validator/
 │   │       └── SwaggerValidatorFilterV3.groovy
 │   └── test/
 │       └── java/be/bnppf/openapi/validator/
-│           ├── OpenAPIValidatorTest.java
+│           ├── BnppfOpenAPIValidatorTest.java
 │           ├── ValidationLevelTest.java
 │           └── ...
 └── target/

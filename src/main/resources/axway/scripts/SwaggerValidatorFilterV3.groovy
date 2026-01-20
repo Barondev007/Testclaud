@@ -1,4 +1,4 @@
-import be.bnppf.openapi.validator.OpenAPIValidator
+import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
 import com.vordel.trace.Trace
@@ -6,7 +6,7 @@ import com.vordel.trace.Trace
 /**
  * Axway API Gateway - OpenAPI Request/Response Validator V3
  *
- * This script uses the OpenAPIValidator Java class for validation.
+ * This script uses the BnppfOpenAPIValidator Java class for validation.
  * The Java class must be deployed as a JAR in the Axway ext/lib directory.
  *
  * Input Attributes:
@@ -56,7 +56,7 @@ def invoke(Message msg) {
         }
 
         // Get validator instance (cached)
-        OpenAPIValidator validator = OpenAPIValidator.getInstance(specContent.toString(), level)
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(specContent.toString(), level)
         validator.setDebugEnabled(debugEnabled)
 
         // Detect if this is a request or response validation

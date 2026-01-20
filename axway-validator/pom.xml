@@ -88,7 +88,7 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.axway.apim.openapi.validator.OpenAPIValidator</mainClass>
+                                    <mainClass>be.bnppf.openapi.validator.BnppfOpenAPIValidator</mainClass>
                                 </transformer>
                                 <!-- Merge service files for ServiceLoader -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
