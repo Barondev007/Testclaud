@@ -1,15 +1,13 @@
 package be.bnppf.openapi.validator.cli;
 
-import com.atlassian.oai.validator.OpenApiInteractionValidator;
-import com.atlassian.oai.validator.model.Request;
-import com.atlassian.oai.validator.model.SimpleRequest;
-import com.atlassian.oai.validator.model.SimpleResponse;
-import com.atlassian.oai.validator.report.LevelResolver;
-import com.atlassian.oai.validator.report.LevelResolverFactory;
-import com.atlassian.oai.validator.report.ValidationReport;
+import be.bnppf.openapi.validator.OpenAPIValidator;
+import be.bnppf.openapi.validator.ValidationLevel;
+import be.bnppf.openapi.validator.ValidationResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.vordel.mime.HeaderSet;
+import com.vordel.mime.QueryStringHeaderSet;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +18,7 @@ import java.util.*;
 
 /**
  * Command-line interface for testing OpenAPI specifications and validating requests/responses.
+ * Uses the BNPPF OpenAPI Validator library (be.bnppf.openapi.validator).
  *
  * Usage:
  *   java -jar openapi-validator-cli.jar [command] [options]
@@ -115,14 +114,16 @@ public class ValidatorCLI {
         }
 
         String specFile = args[1];
-        String level = "LENIENT";
+        String levelStr = "LENIENT";
 
         // Parse options
         for (int i = 2; i < args.length; i++) {
             if ("--level".equals(args[i]) && i + 1 < args.length) {
-                level = args[++i].toUpperCase();
+                levelStr = args[++i].toUpperCase();
             }
         }
+
+        ValidationLevel level = ValidationLevel.fromString(levelStr);
 
         printHeader("OpenAPI Specification Check");
         printInfo("File: " + specFile);
@@ -137,11 +138,13 @@ public class ValidatorCLI {
         long startTime = System.currentTimeMillis();
 
         try {
-            OpenApiInteractionValidator validator = buildValidator(specContent, level);
+            // Use OpenAPIValidator from axway-validator
+            OpenAPIValidator validator = OpenAPIValidator.getInstance(specContent, level);
             long elapsed = System.currentTimeMillis() - startTime;
 
             printSuccess("Specification loaded successfully!");
             printInfo("Load time: " + elapsed + "ms");
+            printInfo("Validation Level: " + validator.getValidationLevel());
 
             // Print spec info
             printSpecInfo(specContent);
@@ -176,10 +179,10 @@ public class ValidatorCLI {
         String path = null;
         String body = null;
         String contentType = "application/json";
-        String level = "LENIENT";
+        String levelStr = "LENIENT";
         int statusCode = 200;
-        Map<String, String> headers = new HashMap<>();
-        Map<String, String> queryParams = new HashMap<>();
+        Map<String, String> headers = new LinkedHashMap<>();
+        Map<String, String> queryParams = new LinkedHashMap<>();
 
         // Parse arguments
         for (int i = 1; i < args.length; i++) {
@@ -233,7 +236,7 @@ public class ValidatorCLI {
                     break;
                 case "--level":
                 case "-l":
-                    level = args[++i].toUpperCase();
+                    levelStr = args[++i].toUpperCase();
                     break;
                 default:
                     // If no flag, assume it's the spec file (first positional arg)
@@ -278,6 +281,8 @@ public class ValidatorCLI {
             System.exit(1);
         }
 
+        ValidationLevel level = ValidationLevel.fromString(levelStr);
+
         printHeader("OpenAPI Request Validation");
         printInfo("Specification: " + specFile);
         printInfo("Validation Level: " + level);
@@ -297,39 +302,37 @@ public class ValidatorCLI {
         }
         System.out.println();
 
-        // Load spec and validate
+        // Load spec and create validator
         String specContent = loadSpecFile(specFile);
 
         printInfo("Loading specification...");
-        OpenApiInteractionValidator validator = buildValidator(specContent, level);
+        OpenAPIValidator validator = OpenAPIValidator.getInstance(specContent, level);
+
+        if (verbose) {
+            validator.setDebugEnabled(true);
+        }
+
         printSuccess("Specification loaded");
         System.out.println();
 
-        // Build request
-        SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(
-                Request.Method.valueOf(method), path);
-
-        if (body != null) {
-            requestBuilder.withBody(body);
-        }
-
-        requestBuilder.withContentType(contentType);
-
+        // Build HeaderSet for headers
+        HeaderSet headerSet = new HeaderSet();
+        headers.put("Content-Type", contentType);
         for (Map.Entry<String, String> header : headers.entrySet()) {
-            requestBuilder.withHeader(header.getKey(), header.getValue());
+            headerSet.addHeader(header.getKey(), header.getValue());
         }
 
+        // Build QueryStringHeaderSet for query parameters
+        QueryStringHeaderSet querySet = new QueryStringHeaderSet();
         for (Map.Entry<String, String> query : queryParams.entrySet()) {
-            requestBuilder.withQueryParam(query.getKey(), query.getValue());
+            querySet.addHeader(query.getKey(), query.getValue());
         }
 
-        SimpleRequest request = requestBuilder.build();
-
-        // Validate request
+        // Validate request using OpenAPIValidator
         printInfo("Validating request...");
-        ValidationReport report = validator.validateRequest(request);
+        ValidationResult result = validator.validateRequest(body, method, path, querySet, headerSet);
 
-        printValidationReport(report, "Request");
+        printValidationResult(result, "Request");
 
         // Validate response if provided
         if (responseFile != null) {
@@ -337,43 +340,16 @@ public class ValidatorCLI {
             printInfo("Validating response...");
 
             String responseBody = new String(Files.readAllBytes(Paths.get(responseFile)), StandardCharsets.UTF_8);
-            SimpleResponse response = SimpleResponse.Builder
-                    .status(statusCode)
-                    .withContentType(contentType)
-                    .withBody(responseBody)
-                    .build();
 
-            ValidationReport responseReport = validator.validateResponse(path, Request.Method.valueOf(method), response);
-            printValidationReport(responseReport, "Response");
+            // Build response headers
+            HeaderSet responseHeaders = new HeaderSet();
+            responseHeaders.addHeader("Content-Type", contentType);
+
+            ValidationResult responseResult = validator.validateResponse(
+                responseBody, method, path, statusCode, responseHeaders);
+
+            printValidationResult(responseResult, "Response");
         }
-    }
-
-    /**
-     * Build an OpenAPI validator with the specified level
-     */
-    private static OpenApiInteractionValidator buildValidator(String spec, String level) {
-        OpenApiInteractionValidator.Builder builder =
-                OpenApiInteractionValidator.createForInlineApiSpecification(spec);
-
-        LevelResolver levelResolver;
-        switch (level.toUpperCase()) {
-            case "LIGHT":
-                levelResolver = LevelResolverFactory.withAdditionalPropertiesIgnored()
-                        .withLevel("validation.request", ValidationReport.Level.INFO)
-                        .withLevel("validation.response", ValidationReport.Level.INFO)
-                        .withLevel("validation.schema", ValidationReport.Level.INFO)
-                        .build();
-                break;
-            case "STRICT":
-                levelResolver = LevelResolver.defaultResolver();
-                break;
-            case "LENIENT":
-            default:
-                levelResolver = LevelResolverFactory.withAdditionalPropertiesIgnored().build();
-                break;
-        }
-
-        return builder.withLevelResolver(levelResolver).build();
     }
 
     /**
@@ -428,31 +404,16 @@ public class ValidatorCLI {
     }
 
     /**
-     * Print validation report
+     * Print validation result from OpenAPIValidator
      */
-    private static void printValidationReport(ValidationReport report, String type) {
-        List<ValidationReport.Message> errors = new ArrayList<>();
-        List<ValidationReport.Message> warnings = new ArrayList<>();
-        List<ValidationReport.Message> infos = new ArrayList<>();
+    private static void printValidationResult(ValidationResult result, String type) {
+        List<String> errors = result.getErrors();
+        List<String> warnings = result.getWarnings();
+        List<String> infos = result.getInfos();
 
-        for (ValidationReport.Message msg : report.getMessages()) {
-            switch (msg.getLevel()) {
-                case ERROR:
-                    errors.add(msg);
-                    break;
-                case WARN:
-                    warnings.add(msg);
-                    break;
-                case INFO:
-                case IGNORE:
-                    infos.add(msg);
-                    break;
-            }
-        }
-
-        if (errors.isEmpty() && warnings.isEmpty()) {
+        if (!result.isBlocked() && errors.isEmpty() && warnings.isEmpty()) {
             printSuccess(type + " validation PASSED");
-        } else if (errors.isEmpty()) {
+        } else if (!result.isBlocked() && errors.isEmpty()) {
             printWarning(type + " validation passed with warnings");
         } else {
             printError(type + " validation FAILED");
@@ -460,40 +421,41 @@ public class ValidatorCLI {
 
         System.out.println();
         printInfo("Summary: " + errors.size() + " errors, " + warnings.size() + " warnings, " + infos.size() + " info");
+        printInfo("Blocked: " + result.isBlocked());
         System.out.println();
 
         if (!errors.isEmpty()) {
             System.out.println(colorize("Errors:", ANSI_RED));
-            for (ValidationReport.Message msg : errors) {
-                System.out.println("  " + colorize("[ERROR]", ANSI_RED) + " " + msg.getMessage());
-                if (verbose && msg.getContext().isPresent()) {
-                    System.out.println("         Context: " + msg.getContext().get());
-                }
+            for (String error : errors) {
+                System.out.println("  " + colorize("[ERROR]", ANSI_RED) + " " + error);
             }
             System.out.println();
         }
 
         if (!warnings.isEmpty()) {
             System.out.println(colorize("Warnings:", ANSI_YELLOW));
-            for (ValidationReport.Message msg : warnings) {
-                System.out.println("  " + colorize("[WARN]", ANSI_YELLOW) + " " + msg.getMessage());
-                if (verbose && msg.getContext().isPresent()) {
-                    System.out.println("         Context: " + msg.getContext().get());
-                }
+            for (String warning : warnings) {
+                System.out.println("  " + colorize("[WARN]", ANSI_YELLOW) + " " + warning);
             }
             System.out.println();
         }
 
         if (verbose && !infos.isEmpty()) {
             System.out.println(colorize("Info:", ANSI_BLUE));
-            for (ValidationReport.Message msg : infos) {
-                System.out.println("  " + colorize("[INFO]", ANSI_BLUE) + " " + msg.getMessage());
+            for (String info : infos) {
+                System.out.println("  " + colorize("[INFO]", ANSI_BLUE) + " " + info);
             }
             System.out.println();
         }
 
+        // Print debug info if available
+        if (verbose && result.getDebugInfo() != null && !result.getDebugInfo().isEmpty()) {
+            System.out.println(colorize("Debug Info:", ANSI_BLUE));
+            System.out.println(result.getDebugInfo());
+        }
+
         // Exit with error if validation failed
-        if (!errors.isEmpty()) {
+        if (result.isBlocked()) {
             System.exit(1);
         }
     }
@@ -601,6 +563,7 @@ public class ValidatorCLI {
 
     private static void printVersion() {
         System.out.println("OpenAPI Validator CLI v" + VERSION);
+        System.out.println("Using BNPPF OpenAPI Validator Library");
     }
 
     private static void printValidateUsage() {
@@ -626,6 +589,7 @@ public class ValidatorCLI {
     private static void printHelp() {
         System.out.println();
         System.out.println(colorize(ANSI_BOLD + "OpenAPI Validator CLI", ANSI_BLUE) + " v" + VERSION);
+        System.out.println("Using BNPPF OpenAPI Validator Library (be.bnppf.openapi.validator)");
         System.out.println();
         System.out.println("A tool for testing OpenAPI specifications and validating API requests.");
         System.out.println();
@@ -640,7 +604,7 @@ public class ValidatorCLI {
         System.out.println();
         System.out.println(colorize("GLOBAL OPTIONS:", ANSI_BOLD));
         System.out.println("  --no-color            Disable colored output");
-        System.out.println("  -v, --verbose         Enable verbose output");
+        System.out.println("  -v, --verbose         Enable verbose output and debug info");
         System.out.println();
         System.out.println(colorize("EXAMPLES:", ANSI_BOLD));
         System.out.println();
@@ -667,12 +631,13 @@ public class ValidatorCLI {
         System.out.println(colorize("VALIDATION LEVELS:", ANSI_BOLD));
         System.out.println("  STRICT   - Enforce all specification rules strictly");
         System.out.println("  LENIENT  - Allow additional properties (default)");
-        System.out.println("  LIGHT    - Minimal validation, warnings only");
+        System.out.println("  LIGHT    - Minimal validation, most issues reported as info");
         System.out.println();
         System.out.println(colorize("REQUEST FILE FORMAT:", ANSI_BOLD));
         System.out.println("  {");
         System.out.println("    \"method\": \"POST\",");
         System.out.println("    \"path\": \"/users\",");
+        System.out.println("    \"contentType\": \"application/json\",");
         System.out.println("    \"headers\": { \"Authorization\": \"Bearer token\" },");
         System.out.println("    \"query\": { \"page\": \"1\" },");
         System.out.println("    \"body\": { \"name\": \"John\" }");

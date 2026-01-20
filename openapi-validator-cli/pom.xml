@@ -16,24 +16,17 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <swagger.validator.version>2.30.0</swagger.validator.version>
     </properties>
 
     <dependencies>
-        <!-- Swagger Request Validator -->
+        <!-- BNPPF OpenAPI Validator (axway-validator) -->
         <dependency>
-            <groupId>com.atlassian.oai</groupId>
-            <artifactId>swagger-request-validator-core</artifactId>
-            <version>${swagger.validator.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>be.bnppf</groupId>
+            <artifactId>openapi-validator</artifactId>
+            <version>1.0.0</version>
         </dependency>
 
-        <!-- SLF4J Simple for CLI logging -->
+        <!-- SLF4J Simple for CLI logging (override the nop from axway-validator) -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
