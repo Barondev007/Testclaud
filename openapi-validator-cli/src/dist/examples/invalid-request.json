@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/pets",
+  "contentType": "application/json",
+  "headers": {
+    "Accept": "application/json"
+  },
+  "body": {
+    "tag": "cat",
+    "status": "unknown-status"
+  }
+}

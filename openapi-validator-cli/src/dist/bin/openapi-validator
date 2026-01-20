@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# OpenAPI Validator CLI
+# Run script for Linux/macOS
+#
+# Usage: ./openapi-validator <command> [options]
+#
+
+# Resolve the script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
+JAR_FILE="$BASE_DIR/lib/openapi-validator-cli.jar"
+
+# Check if JAR exists
+if [ ! -f "$JAR_FILE" ]; then
+    echo "Error: Cannot find openapi-validator-cli.jar"
+    echo "Expected location: $JAR_FILE"
+    exit 1
+fi
+
+# Check for Java
+if ! command -v java &> /dev/null; then
+    echo "Error: Java is not installed or not in PATH"
+    echo "Please install Java 8 or higher to run this tool."
+    exit 1
+fi
+
+# Check Java version
+JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1-2)
+JAVA_MAJOR=$(echo "$JAVA_VERSION" | cut -d'.' -f1)
+
+# Handle both old (1.8) and new (11, 17, etc.) version formats
+if [ "$JAVA_MAJOR" = "1" ]; then
+    JAVA_MAJOR=$(echo "$JAVA_VERSION" | cut -d'.' -f2)
+fi
+
+if [ "$JAVA_MAJOR" -lt 8 ]; then
+    echo "Error: Java 8 or higher is required"
+    echo "Current version: $JAVA_VERSION"
+    exit 1
+fi
+
+# Set default JVM options if not already set
+JAVA_OPTS="${JAVA_OPTS:--Xmx256m}"
+
+# Run the validator
+exec java $JAVA_OPTS -jar "$JAR_FILE" "$@"
