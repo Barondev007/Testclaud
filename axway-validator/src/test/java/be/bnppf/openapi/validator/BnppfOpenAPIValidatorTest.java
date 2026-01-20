@@ -1,15 +1,21 @@
 package be.bnppf.openapi.validator;
 
-import com.vordel.mime.HeaderSet;
-import com.vordel.mime.QueryStringHeaderSet;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit tests for BnppfOpenAPIValidator.
+ * Uses standard Java types (Map) instead of Axway Vordel types for portability.
+ */
 class BnppfOpenAPIValidatorTest {
 
     private static final String SAMPLE_SPEC = "openapi: 3.0.0\n" +
@@ -86,6 +92,28 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator.clearCache();
     }
 
+    /**
+     * Helper method to create headers map with Content-Type
+     */
+    private Map<String, List<String>> createHeaders(String contentType) {
+        Map<String, List<String>> headers = new HashMap<>();
+        List<String> values = new ArrayList<>();
+        values.add(contentType);
+        headers.put("Content-Type", values);
+        return headers;
+    }
+
+    /**
+     * Helper method to create query params map
+     */
+    private Map<String, List<String>> createQueryParams(String key, String value) {
+        Map<String, List<String>> params = new HashMap<>();
+        List<String> values = new ArrayList<>();
+        values.add(value);
+        params.put(key, values);
+        return params;
+    }
+
     @Test
     void testGetInstanceCreatesValidator() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
@@ -153,9 +181,7 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\"}";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateRequest(
                 body,
@@ -175,9 +201,7 @@ class BnppfOpenAPIValidatorTest {
 
         // Missing required 'email' field
         String body = "{\"name\": \"John Doe\"}";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateRequest(
                 body,
@@ -198,9 +222,7 @@ class BnppfOpenAPIValidatorTest {
 
         // Body with additional property 'age' not in schema
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"age\": 30}";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateRequest(
                 body,
@@ -220,9 +242,7 @@ class BnppfOpenAPIValidatorTest {
 
         // Body with additional property 'age' not in schema
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"age\": 30}";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateRequest(
                 body,
@@ -242,9 +262,7 @@ class BnppfOpenAPIValidatorTest {
 
         // Missing required 'email' field - would normally block
         String body = "{\"name\": \"John Doe\"}";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateRequest(
                 body,
@@ -265,9 +283,7 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "[{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}]";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateResponse(
                 body,
@@ -286,9 +302,7 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}";
-
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         ValidationResult result = validator.validateResponse(
                 body,
@@ -321,8 +335,7 @@ class BnppfOpenAPIValidatorTest {
     void testIsValidResponseSimple() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        HeaderSet headers = new HeaderSet();
-        headers.setHeader("Content-Type", "application/json");
+        Map<String, List<String>> headers = createHeaders("application/json");
 
         boolean valid = validator.isValidResponse(
                 "[{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}]",
@@ -396,7 +409,7 @@ class BnppfOpenAPIValidatorTest {
     void testGetUsersWithQueryParams() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        QueryStringHeaderSet queryParams = new QueryStringHeaderSet("limit=10");
+        Map<String, List<String>> queryParams = createQueryParams("limit", "10");
 
         ValidationResult result = validator.validateRequest(
                 null,
