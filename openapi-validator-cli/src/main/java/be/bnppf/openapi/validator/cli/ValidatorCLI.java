@@ -6,8 +6,6 @@ import be.bnppf.openapi.validator.ValidationResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.vordel.mime.HeaderSet;
-import com.vordel.mime.QueryStringHeaderSet;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +17,8 @@ import java.util.*;
 /**
  * Command-line interface for testing OpenAPI specifications and validating requests/responses.
  * Uses the BNPPF OpenAPI Validator library (be.bnppf.openapi.validator).
+ *
+ * This CLI uses standard Java types only - no Axway dependencies required.
  *
  * Usage:
  *   java -jar openapi-validator-cli.jar [command] [options]
@@ -181,8 +181,8 @@ public class ValidatorCLI {
         String contentType = "application/json";
         String levelStr = "LENIENT";
         int statusCode = 200;
-        Map<String, String> headers = new LinkedHashMap<>();
-        Map<String, String> queryParams = new LinkedHashMap<>();
+        Map<String, List<String>> headers = new LinkedHashMap<>();
+        Map<String, List<String>> queryParams = new LinkedHashMap<>();
 
         // Parse arguments
         for (int i = 1; i < args.length; i++) {
@@ -221,14 +221,14 @@ public class ValidatorCLI {
                 case "-H":
                     String[] headerParts = args[++i].split(":", 2);
                     if (headerParts.length == 2) {
-                        headers.put(headerParts[0].trim(), headerParts[1].trim());
+                        addToMultiMap(headers, headerParts[0].trim(), headerParts[1].trim());
                     }
                     break;
                 case "--query":
                 case "-q":
                     String[] queryParts = args[++i].split("=", 2);
                     if (queryParts.length == 2) {
-                        queryParams.put(queryParts[0].trim(), queryParts[1].trim());
+                        addToMultiMap(queryParams, queryParts[0].trim(), queryParts[1].trim());
                     }
                     break;
                 case "--status":
@@ -261,13 +261,17 @@ public class ValidatorCLI {
             if (body == null) body = (String) requestData.get("body");
             if (requestData.containsKey("headers")) {
                 @SuppressWarnings("unchecked")
-                Map<String, String> reqHeaders = (Map<String, String>) requestData.get("headers");
-                headers.putAll(reqHeaders);
+                Map<String, Object> reqHeaders = (Map<String, Object>) requestData.get("headers");
+                for (Map.Entry<String, Object> entry : reqHeaders.entrySet()) {
+                    addToMultiMap(headers, entry.getKey(), String.valueOf(entry.getValue()));
+                }
             }
             if (requestData.containsKey("query")) {
                 @SuppressWarnings("unchecked")
-                Map<String, String> reqQuery = (Map<String, String>) requestData.get("query");
-                queryParams.putAll(reqQuery);
+                Map<String, Object> reqQuery = (Map<String, Object>) requestData.get("query");
+                for (Map.Entry<String, Object> entry : reqQuery.entrySet()) {
+                    addToMultiMap(queryParams, entry.getKey(), String.valueOf(entry.getValue()));
+                }
             }
             if (requestData.containsKey("contentType")) {
                 contentType = (String) requestData.get("contentType");
@@ -315,22 +319,12 @@ public class ValidatorCLI {
         printSuccess("Specification loaded");
         System.out.println();
 
-        // Build HeaderSet for headers
-        HeaderSet headerSet = new HeaderSet();
-        headers.put("Content-Type", contentType);
-        for (Map.Entry<String, String> header : headers.entrySet()) {
-            headerSet.addHeader(header.getKey(), header.getValue());
-        }
+        // Add Content-Type header
+        addToMultiMap(headers, "Content-Type", contentType);
 
-        // Build QueryStringHeaderSet for query parameters
-        QueryStringHeaderSet querySet = new QueryStringHeaderSet();
-        for (Map.Entry<String, String> query : queryParams.entrySet()) {
-            querySet.addHeader(query.getKey(), query.getValue());
-        }
-
-        // Validate request using OpenAPIValidator
+        // Validate request using OpenAPIValidator with standard Java types
         printInfo("Validating request...");
-        ValidationResult result = validator.validateRequest(body, method, path, querySet, headerSet);
+        ValidationResult result = validator.validateRequest(body, method, path, queryParams, headers);
 
         printValidationResult(result, "Request");
 
@@ -342,14 +336,21 @@ public class ValidatorCLI {
             String responseBody = new String(Files.readAllBytes(Paths.get(responseFile)), StandardCharsets.UTF_8);
 
             // Build response headers
-            HeaderSet responseHeaders = new HeaderSet();
-            responseHeaders.addHeader("Content-Type", contentType);
+            Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
+            addToMultiMap(responseHeaders, "Content-Type", contentType);
 
             ValidationResult responseResult = validator.validateResponse(
                 responseBody, method, path, statusCode, responseHeaders);
 
             printValidationResult(responseResult, "Response");
         }
+    }
+
+    /**
+     * Helper method to add a value to a multi-value map
+     */
+    private static void addToMultiMap(Map<String, List<String>> map, String key, String value) {
+        map.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
     }
 
     /**

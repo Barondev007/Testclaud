@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -136,11 +137,192 @@ public class OpenAPIValidator {
     }
 
     // ========================================================================
-    // REQUEST VALIDATION
+    // REQUEST VALIDATION (Standard Java types - for CLI and standalone usage)
     // ========================================================================
 
     /**
-     * Validate a request and return a ValidationResult.
+     * Validate a request using standard Java types (no Axway dependencies).
+     * This method is suitable for CLI tools and standalone applications.
+     *
+     * @param payload     The request body (can be null)
+     * @param verb        The HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        The request path
+     * @param queryParams Query parameters as Map (param name -> list of values)
+     * @param headers     Headers as Map (header name -> list of values)
+     * @return ValidationResult
+     */
+    public ValidationResult validateRequest(String payload, String verb, String path,
+            Map<String, List<String>> queryParams, Map<String, List<String>> headers) {
+
+        if (debugEnabled) {
+            debugInfo = new StringBuilder();
+            debugInfo.append("=== REQUEST VALIDATION ===\n");
+            debugInfo.append("Verb: ").append(verb).append("\n");
+            debugInfo.append("Path: ").append(path).append("\n");
+            debugInfo.append("Level: ").append(validationLevel).append("\n");
+            logDebugHeadersMap(headers);
+            logDebugQueryParamsMap(queryParams);
+        }
+
+        Utils.traceMessage("Validate request: [verb: " + verb + ", path: '" + path +
+            "', payload: '" + Utils.getContentStart(payload, payloadLogMaxLength, true) + "']", TraceLevel.INFO);
+
+        ValidationReport report = performRequestValidationWithMaps(payload, verb, path, queryParams, headers);
+        ValidationResult result = ValidationResult.fromReport(report, validationLevel, "request");
+
+        if (debugEnabled) {
+            result.setDebugInfo(debugInfo.toString());
+        }
+
+        if (report.hasErrors()) {
+            for (Message message : report.getMessages()) {
+                Utils.traceMessage(message.getMessage(), TraceLevel.valueOf(message.getLevel().name()));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Simple validation check for request using standard Java types.
+     */
+    public boolean isValidRequest(String payload, String verb, String path,
+            Map<String, List<String>> queryParams, Map<String, List<String>> headers) {
+        ValidationResult result = validateRequest(payload, verb, path, queryParams, headers);
+        return !result.isBlocked();
+    }
+
+    private ValidationReport performRequestValidationWithMaps(final String payload, final String verb, String path,
+            final Map<String, List<String>> queryParams, final Map<String, List<String>> headers) {
+
+        ValidationReport validationReport = null;
+        String originalPath = path;
+        boolean cachePath = false;
+
+        // Check if path was previously mapped
+        if (exposurePath2SpecifiedPathMap.containsKey(path)) {
+            Object cached = exposurePath2SpecifiedPathMap.get(path);
+            if (cached instanceof ValidationReport) {
+                return (ValidationReport) cached;
+            } else {
+                return executeRequestValidationWithMaps(payload, verb, (String) cached, queryParams, headers);
+            }
+        }
+
+        // Try to find the matching path (handle FE-API exposure paths)
+        for (int i = 0; i < 5; i++) {
+            if (cachePath) {
+                Utils.traceMessage("Retrying validation with reduced path: '" + path + "' (" + i + "/5)", TraceLevel.INFO);
+            }
+            validationReport = executeRequestValidationWithMaps(payload, verb, path, queryParams, headers);
+
+            if (validationReport.hasErrors()) {
+                if (validationReport.getMessages().toString().contains("No API path found that matches request")) {
+                    cachePath = true;
+                    if (path.indexOf("/", 1) == -1) {
+                        break;
+                    } else {
+                        path = path.substring(path.indexOf("/", 1));
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        if (cachePath) {
+            if (validationReport.hasErrors() &&
+                validationReport.getMessages().toString().contains("No API path found that matches request")) {
+                exposurePath2SpecifiedPathMap.put(originalPath, validationReport);
+            } else {
+                exposurePath2SpecifiedPathMap.put(originalPath, path);
+            }
+        }
+
+        return validationReport;
+    }
+
+    private ValidationReport executeRequestValidationWithMaps(final String payload, final String verb, final String path,
+            final Map<String, List<String>> queryParams, final Map<String, List<String>> headers) {
+
+        Request request = new Request() {
+            @Override
+            public String getPath() {
+                return path;
+            }
+
+            @Override
+            public Method getMethod() {
+                return Request.Method.valueOf(verb.toUpperCase());
+            }
+
+            @Override
+            public Optional<String> getBody() {
+                return Optional.ofNullable(payload);
+            }
+
+            @Override
+            public Collection<String> getQueryParameters() {
+                if (queryParams == null) return Collections.emptyList();
+                return queryParams.keySet();
+            }
+
+            @Override
+            public Collection<String> getQueryParameterValues(String name) {
+                if (queryParams == null) return Collections.emptyList();
+                List<String> values = queryParams.get(name);
+                if (values == null) return Collections.emptyList();
+
+                if (decodeQueryParams) {
+                    List<String> decodedValues = new ArrayList<>();
+                    for (String value : values) {
+                        try {
+                            decodedValues.add(URLDecoder.decode(value, StandardCharsets.UTF_8.toString()));
+                        } catch (UnsupportedEncodingException e) {
+                            Utils.traceMessage("Error decoding: " + value, TraceLevel.ERROR);
+                            decodedValues.add(value);
+                        }
+                    }
+                    return decodedValues;
+                }
+                return values;
+            }
+
+            @Override
+            public Map<String, Collection<String>> getHeaders() {
+                if (headers == null) return Collections.emptyMap();
+                Map<String, Collection<String>> result = new LinkedHashMap<>();
+                for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                    result.put(entry.getKey(), entry.getValue());
+                }
+                return result;
+            }
+
+            @Override
+            public Collection<String> getHeaderValues(String name) {
+                if (headers == null) return Collections.emptyList();
+                // Case-insensitive header lookup
+                for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                    if (entry.getKey().equalsIgnoreCase(name)) {
+                        return entry.getValue() != null ? entry.getValue() : Collections.emptyList();
+                    }
+                }
+                return Collections.emptyList();
+            }
+        };
+
+        return validator.validateRequest(request);
+    }
+
+    // ========================================================================
+    // REQUEST VALIDATION (Axway Vordel types - for Axway Gateway usage)
+    // ========================================================================
+
+    /**
+     * Validate a request using Axway Vordel types.
+     * This method is for use within Axway API Gateway.
      */
     public ValidationResult validateRequest(String payload, String verb, String path,
             QueryStringHeaderSet queryParams, HeaderSet headers) {
@@ -300,11 +482,99 @@ public class OpenAPIValidator {
     }
 
     // ========================================================================
-    // RESPONSE VALIDATION
+    // RESPONSE VALIDATION (Standard Java types - for CLI and standalone usage)
     // ========================================================================
 
     /**
-     * Validate a response and return a ValidationResult.
+     * Validate a response using standard Java types (no Axway dependencies).
+     * This method is suitable for CLI tools and standalone applications.
+     *
+     * @param payload  The response body (can be null)
+     * @param verb     The HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path     The request path
+     * @param status   The HTTP status code
+     * @param headers  Headers as Map (header name -> list of values)
+     * @return ValidationResult
+     */
+    public ValidationResult validateResponse(String payload, String verb, String path,
+            int status, Map<String, List<String>> headers) {
+
+        if (debugEnabled) {
+            debugInfo = new StringBuilder();
+            debugInfo.append("=== RESPONSE VALIDATION ===\n");
+            debugInfo.append("Verb: ").append(verb).append("\n");
+            debugInfo.append("Path: ").append(path).append("\n");
+            debugInfo.append("Status: ").append(status).append("\n");
+            debugInfo.append("Level: ").append(validationLevel).append("\n");
+            logDebugHeadersMap(headers);
+        }
+
+        Utils.traceMessage("Validate response: [verb: " + verb + ", path: '" + path +
+            "', status: " + status + ", payload: '" + Utils.getContentStart(payload, payloadLogMaxLength, true) + "']",
+            TraceLevel.INFO);
+
+        ValidationReport report = executeResponseValidationWithMaps(payload, verb, path, status, headers);
+        ValidationResult result = ValidationResult.fromReport(report, validationLevel, "response");
+
+        if (debugEnabled) {
+            result.setDebugInfo(debugInfo.toString());
+        }
+
+        if (report.hasErrors()) {
+            for (Message message : report.getMessages()) {
+                Utils.traceMessage(message.getMessage(), TraceLevel.valueOf(message.getLevel().name()));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Simple validation check for response using standard Java types.
+     */
+    public boolean isValidResponse(String payload, String verb, String path, int status,
+            Map<String, List<String>> headers) {
+        ValidationResult result = validateResponse(payload, verb, path, status, headers);
+        return !result.isBlocked();
+    }
+
+    private ValidationReport executeResponseValidationWithMaps(final String payload, String verb, String path,
+            final int status, final Map<String, List<String>> headers) {
+
+        Response response = new Response() {
+            @Override
+            public int getStatus() {
+                return status;
+            }
+
+            @Override
+            public Collection<String> getHeaderValues(String name) {
+                if (headers == null) return Collections.emptyList();
+                // Case-insensitive header lookup
+                for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                    if (entry.getKey().equalsIgnoreCase(name)) {
+                        return entry.getValue() != null ? entry.getValue() : Collections.emptyList();
+                    }
+                }
+                return Collections.emptyList();
+            }
+
+            @Override
+            public Optional<String> getBody() {
+                return Optional.ofNullable(payload);
+            }
+        };
+
+        return validator.validateResponse(path, Request.Method.valueOf(verb.toUpperCase()), response);
+    }
+
+    // ========================================================================
+    // RESPONSE VALIDATION (Axway Vordel types - for Axway Gateway usage)
+    // ========================================================================
+
+    /**
+     * Validate a response using Axway Vordel types.
+     * This method is for use within Axway API Gateway.
      */
     public ValidationResult validateResponse(String payload, String verb, String path,
             int status, HeaderSet headers) {
@@ -373,6 +643,34 @@ public class OpenAPIValidator {
     // ========================================================================
     // DEBUG METHODS
     // ========================================================================
+
+    private void logDebugHeadersMap(Map<String, List<String>> headers) {
+        if (!debugEnabled) return;
+
+        debugInfo.append("=== HEADERS ===\n");
+        if (headers == null || headers.isEmpty()) {
+            debugInfo.append("  (none)\n");
+            return;
+        }
+        debugInfo.append("  Count: ").append(headers.size()).append("\n");
+        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+            debugInfo.append("  ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+        }
+    }
+
+    private void logDebugQueryParamsMap(Map<String, List<String>> queryParams) {
+        if (!debugEnabled) return;
+
+        debugInfo.append("=== QUERY PARAMS ===\n");
+        if (queryParams == null || queryParams.isEmpty()) {
+            debugInfo.append("  (none)\n");
+            return;
+        }
+        debugInfo.append("  Count: ").append(queryParams.size()).append("\n");
+        for (Map.Entry<String, List<String>> entry : queryParams.entrySet()) {
+            debugInfo.append("  ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+        }
+    }
 
     private void logDebugHeaders(HeaderSet headers) {
         if (!debugEnabled || headers == null) return;
