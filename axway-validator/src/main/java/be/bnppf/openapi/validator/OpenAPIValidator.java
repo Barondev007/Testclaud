@@ -22,8 +22,6 @@ import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 import com.atlassian.oai.validator.report.ValidationReport.Message;
 import be.bnppf.openapi.validator.Utils.TraceLevel;
-import com.vordel.mime.HeaderSet;
-import com.vordel.mime.QueryStringHeaderSet;
 
 /**
  * Enhanced OpenAPI Validator for Axway API Gateway.
@@ -323,9 +321,17 @@ public class OpenAPIValidator {
     /**
      * Validate a request using Axway Vordel types.
      * This method is for use within Axway API Gateway.
+     * Parameters accept Object type to avoid compile-time dependency on Vordel classes.
+     *
+     * @param payload     The request body (can be null)
+     * @param verb        The HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        The request path
+     * @param queryParams QueryStringHeaderSet object (com.vordel.mime.QueryStringHeaderSet)
+     * @param headers     HeaderSet object (com.vordel.mime.HeaderSet)
+     * @return ValidationResult
      */
-    public ValidationResult validateRequest(String payload, String verb, String path,
-            QueryStringHeaderSet queryParams, HeaderSet headers) {
+    public ValidationResult validateRequestAxway(String payload, String verb, String path,
+            Object queryParams, Object headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -333,14 +339,14 @@ public class OpenAPIValidator {
             debugInfo.append("Verb: ").append(verb).append("\n");
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
-            logDebugHeaders(headers);
-            logDebugQueryParams(queryParams);
+            logDebugHeadersAxway(headers);
+            logDebugQueryParamsAxway(queryParams);
         }
 
         Utils.traceMessage("Validate request: [verb: " + verb + ", path: '" + path +
             "', payload: '" + Utils.getContentStart(payload, payloadLogMaxLength, true) + "']", TraceLevel.INFO);
 
-        ValidationReport report = performRequestValidation(payload, verb, path, queryParams, headers);
+        ValidationReport report = performRequestValidationAxway(payload, verb, path, queryParams, headers);
         ValidationResult result = ValidationResult.fromReport(report, validationLevel, "request");
 
         if (debugEnabled) {
@@ -360,16 +366,16 @@ public class OpenAPIValidator {
     }
 
     /**
-     * Simple validation check for request.
+     * Simple validation check for request using Axway Vordel types.
      */
-    public boolean isValidRequest(String payload, String verb, String path,
-            QueryStringHeaderSet queryParams, HeaderSet headers) {
-        ValidationResult result = validateRequest(payload, verb, path, queryParams, headers);
+    public boolean isValidRequestAxway(String payload, String verb, String path,
+            Object queryParams, Object headers) {
+        ValidationResult result = validateRequestAxway(payload, verb, path, queryParams, headers);
         return !result.isBlocked();
     }
 
-    private ValidationReport performRequestValidation(final String payload, final String verb, String path,
-            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
+    private ValidationReport performRequestValidationAxway(final String payload, final String verb, String path,
+            final Object queryParams, final Object headers) {
 
         ValidationReport validationReport = null;
         String originalPath = path;
@@ -381,7 +387,7 @@ public class OpenAPIValidator {
             if (cached instanceof ValidationReport) {
                 return (ValidationReport) cached;
             } else {
-                return executeRequestValidation(payload, verb, (String) cached, queryParams, headers);
+                return executeRequestValidationAxway(payload, verb, (String) cached, queryParams, headers);
             }
         }
 
@@ -390,7 +396,7 @@ public class OpenAPIValidator {
             if (cachePath) {
                 Utils.traceMessage("Retrying validation with reduced path: '" + path + "' (" + i + "/5)", TraceLevel.INFO);
             }
-            validationReport = executeRequestValidation(payload, verb, path, queryParams, headers);
+            validationReport = executeRequestValidationAxway(payload, verb, path, queryParams, headers);
 
             if (validationReport.hasErrors()) {
                 if (validationReport.getMessages().toString().contains("No API path found that matches request")) {
@@ -420,8 +426,8 @@ public class OpenAPIValidator {
         return validationReport;
     }
 
-    private ValidationReport executeRequestValidation(final String payload, final String verb, final String path,
-            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
+    private ValidationReport executeRequestValidationAxway(final String payload, final String verb, final String path,
+            final Object queryParams, final Object headers) {
 
         Request request = new Request() {
             @Override
@@ -443,28 +449,40 @@ public class OpenAPIValidator {
             @SuppressWarnings("unchecked")
             public Collection<String> getQueryParameters() {
                 if (queryParams == null) return Collections.emptyList();
-                Collection<String> params = queryParams.getHeaderSet();
-                return (params == null || params.isEmpty()) ? Collections.emptyList() : params;
+                try {
+                    java.lang.reflect.Method method = queryParams.getClass().getMethod("getHeaderSet");
+                    Collection<String> params = (Collection<String>) method.invoke(queryParams);
+                    return (params == null || params.isEmpty()) ? Collections.emptyList() : params;
+                } catch (Exception e) {
+                    return Collections.emptyList();
+                }
             }
 
             @Override
             @SuppressWarnings("unchecked")
             public Collection<String> getQueryParameterValues(String name) {
                 if (queryParams == null) return Collections.emptyList();
-                ArrayList<String> values = queryParams.getHeaderValues(name);
-                if (values == null) return Collections.emptyList();
+                try {
+                    java.lang.reflect.Method method = queryParams.getClass().getMethod("getHeaderValues", String.class);
+                    ArrayList<String> values = (ArrayList<String>) method.invoke(queryParams, name);
+                    if (values == null) return Collections.emptyList();
 
-                if (decodeQueryParams) {
-                    values.replaceAll(headerValue -> {
-                        try {
-                            return URLDecoder.decode(headerValue, StandardCharsets.UTF_8.toString());
-                        } catch (UnsupportedEncodingException e) {
-                            Utils.traceMessage("Error decoding: " + headerValue, TraceLevel.ERROR);
-                            return headerValue;
+                    if (decodeQueryParams) {
+                        List<String> decodedValues = new ArrayList<>();
+                        for (String value : values) {
+                            try {
+                                decodedValues.add(URLDecoder.decode(value, StandardCharsets.UTF_8.toString()));
+                            } catch (UnsupportedEncodingException e) {
+                                Utils.traceMessage("Error decoding: " + value, TraceLevel.ERROR);
+                                decodedValues.add(value);
+                            }
                         }
-                    });
+                        return decodedValues;
+                    }
+                    return values;
+                } catch (Exception e) {
+                    return Collections.emptyList();
                 }
-                return values;
             }
 
             @Override
@@ -575,9 +593,17 @@ public class OpenAPIValidator {
     /**
      * Validate a response using Axway Vordel types.
      * This method is for use within Axway API Gateway.
+     * Parameters accept Object type to avoid compile-time dependency on Vordel classes.
+     *
+     * @param payload  The response body (can be null)
+     * @param verb     The HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path     The request path
+     * @param status   The HTTP status code
+     * @param headers  HeaderSet object (com.vordel.mime.HeaderSet)
+     * @return ValidationResult
      */
-    public ValidationResult validateResponse(String payload, String verb, String path,
-            int status, HeaderSet headers) {
+    public ValidationResult validateResponseAxway(String payload, String verb, String path,
+            int status, Object headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -586,14 +612,14 @@ public class OpenAPIValidator {
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Status: ").append(status).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
-            logDebugHeaders(headers);
+            logDebugHeadersAxway(headers);
         }
 
         Utils.traceMessage("Validate response: [verb: " + verb + ", path: '" + path +
             "', status: " + status + ", payload: '" + Utils.getContentStart(payload, payloadLogMaxLength, true) + "']",
             TraceLevel.INFO);
 
-        ValidationReport report = executeResponseValidation(payload, verb, path, status, headers);
+        ValidationReport report = executeResponseValidationAxway(payload, verb, path, status, headers);
         ValidationResult result = ValidationResult.fromReport(report, validationLevel, "response");
 
         if (debugEnabled) {
@@ -610,15 +636,15 @@ public class OpenAPIValidator {
     }
 
     /**
-     * Simple validation check for response.
+     * Simple validation check for response using Axway Vordel types.
      */
-    public boolean isValidResponse(String payload, String verb, String path, int status, HeaderSet headers) {
-        ValidationResult result = validateResponse(payload, verb, path, status, headers);
+    public boolean isValidResponseAxway(String payload, String verb, String path, int status, Object headers) {
+        ValidationResult result = validateResponseAxway(payload, verb, path, status, headers);
         return !result.isBlocked();
     }
 
-    private ValidationReport executeResponseValidation(final String payload, String verb, String path,
-            final int status, final HeaderSet headers) {
+    private ValidationReport executeResponseValidationAxway(final String payload, String verb, String path,
+            final int status, final Object headers) {
 
         Response response = new Response() {
             @Override
@@ -672,7 +698,7 @@ public class OpenAPIValidator {
         }
     }
 
-    private void logDebugHeaders(HeaderSet headers) {
+    private void logDebugHeadersAxway(Object headers) {
         if (!debugEnabled || headers == null) return;
 
         debugInfo.append("=== HEADERS ===\n");
@@ -688,20 +714,22 @@ public class OpenAPIValidator {
         }
     }
 
-    private void logDebugQueryParams(QueryStringHeaderSet queryParams) {
+    @SuppressWarnings("unchecked")
+    private void logDebugQueryParamsAxway(Object queryParams) {
         if (!debugEnabled || queryParams == null) return;
 
         debugInfo.append("=== QUERY PARAMS ===\n");
         try {
-            @SuppressWarnings("unchecked")
-            Collection<String> paramNames = queryParams.getHeaderSet();
+            java.lang.reflect.Method method = queryParams.getClass().getMethod("getHeaderSet");
+            Collection<String> paramNames = (Collection<String>) method.invoke(queryParams);
             if (paramNames == null || paramNames.isEmpty()) {
                 debugInfo.append("  (none)\n");
                 return;
             }
             debugInfo.append("  Count: ").append(paramNames.size()).append("\n");
+            java.lang.reflect.Method getValuesMethod = queryParams.getClass().getMethod("getHeaderValues", String.class);
             for (String name : paramNames) {
-                ArrayList<String> values = queryParams.getHeaderValues(name);
+                ArrayList<String> values = (ArrayList<String>) getValuesMethod.invoke(queryParams, name);
                 debugInfo.append("  ").append(name).append(": ").append(values).append("\n");
             }
         } catch (Exception e) {

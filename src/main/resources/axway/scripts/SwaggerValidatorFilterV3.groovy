@@ -1,9 +1,6 @@
 import be.bnppf.openapi.validator.OpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
-import com.vordel.mime.HeaderSet
-import com.vordel.mime.QueryStringHeaderSet
-import com.vordel.mime.Body
 import com.vordel.trace.Trace
 
 /**
@@ -83,21 +80,21 @@ def invoke(Message msg) {
         if (isResponseValidation) {
             // Response validation
             int statusCode = parseStatusCode(responseStatus)
-            HeaderSet headers = getHeaders(msg)
+            def headers = getHeaders(msg)
 
             if (debugEnabled) {
                 Trace.info("[DEBUG] Response status: ${statusCode}")
             }
 
-            result = validator.validateResponse(body, httpMethod, requestPath, statusCode, headers)
+            result = validator.validateResponseAxway(body, httpMethod, requestPath, statusCode, headers)
             msg.put("openapi.validation.type", "response")
 
         } else {
             // Request validation
-            HeaderSet headers = getHeaders(msg)
-            QueryStringHeaderSet queryParams = getQueryParams(msg)
+            def headers = getHeaders(msg)
+            def queryParams = getQueryParams(msg)
 
-            result = validator.validateRequest(body, httpMethod, requestPath, queryParams, headers)
+            result = validator.validateRequestAxway(body, httpMethod, requestPath, queryParams, headers)
             msg.put("openapi.validation.type", "request")
         }
 
@@ -196,8 +193,9 @@ def getHeaders(Message msg) {
 
     for (attrName in headerAttributeNames) {
         def headers = msg.get(attrName)
-        if (headers != null && headers instanceof HeaderSet) {
-            return (HeaderSet) headers
+        // Check by class name to avoid direct dependency on HeaderSet
+        if (headers != null && headers.getClass().getName().contains("HeaderSet")) {
+            return headers
         }
     }
 
@@ -216,8 +214,9 @@ def getQueryParams(Message msg) {
 
     for (attrName in queryParamAttributeNames) {
         def params = msg.get(attrName)
-        if (params != null && params instanceof QueryStringHeaderSet) {
-            return (QueryStringHeaderSet) params
+        // Check by class name to avoid direct dependency on QueryStringHeaderSet
+        if (params != null && params.getClass().getName().contains("QueryStringHeaderSet")) {
+            return params
         }
     }
 
