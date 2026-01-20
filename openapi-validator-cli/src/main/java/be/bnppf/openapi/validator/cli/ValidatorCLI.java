@@ -531,6 +531,17 @@ public class ValidatorCLI {
 
     // ==================== Output Helpers ====================
 
+    /**
+     * Java 8 compatible string repeat method
+     */
+    private static String repeatString(String str, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(str);
+        }
+        return sb.toString();
+    }
+
     private static String colorize(String text, String color) {
         if (useColors) {
             return color + text + ANSI_RESET;
@@ -540,9 +551,9 @@ public class ValidatorCLI {
 
     private static void printHeader(String text) {
         System.out.println();
-        System.out.println(colorize("═".repeat(60), ANSI_BLUE));
+        System.out.println(colorize(repeatString("=", 60), ANSI_BLUE));
         System.out.println(colorize(ANSI_BOLD + "  " + text, ANSI_BLUE));
-        System.out.println(colorize("═".repeat(60), ANSI_BLUE));
+        System.out.println(colorize(repeatString("=", 60), ANSI_BLUE));
         System.out.println();
     }
 
