@@ -1,23 +1,38 @@
 package com.vordel.mime;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Stub class for Axway HeaderSet.
  * This is only used for compilation and testing.
  * The actual class is provided by Axway runtime.
  */
-public class HeaderSet {
+public class HeaderSet implements Iterable<String> {
 
     protected Map<String, ArrayList<String>> headers = new HashMap<>();
 
-    public Collection<String> getHeaderSet() {
+    /**
+     * Returns an iterator over header names.
+     */
+    @Override
+    public Iterator<String> iterator() {
+        return headers.keySet().iterator();
+    }
+
+    /**
+     * Returns the set of header names.
+     */
+    public Set<String> getHeaderNames() {
         return headers.keySet();
     }
 
+    /**
+     * Returns values for a specific header.
+     */
     public ArrayList<String> getHeaderValues(String name) {
         // Case-insensitive lookup
         for (Map.Entry<String, ArrayList<String>> entry : headers.entrySet()) {
@@ -28,6 +43,9 @@ public class HeaderSet {
         return null;
     }
 
+    /**
+     * Returns first value for a specific header.
+     */
     public String getHeader(String name) {
         ArrayList<String> values = getHeaderValues(name);
         return (values != null && !values.isEmpty()) ? values.get(0) : null;

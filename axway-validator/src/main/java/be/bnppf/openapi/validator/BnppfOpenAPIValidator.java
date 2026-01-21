@@ -204,8 +204,12 @@ public class BnppfOpenAPIValidator {
             @Override
             public Collection<String> getQueryParameters() {
                 if (queryParams == null) return Collections.emptyList();
-                Collection<String> params = queryParams.getHeaderSet();
-                return (params == null) ? Collections.emptyList() : params;
+                // Iterate over QueryStringHeaderSet (it's Iterable)
+                ArrayList<String> params = new ArrayList<>();
+                for (String name : queryParams) {
+                    params.add(name);
+                }
+                return params;
             }
 
             @Override
@@ -229,13 +233,11 @@ public class BnppfOpenAPIValidator {
             public Map<String, Collection<String>> getHeaders() {
                 if (headers == null) return Collections.emptyMap();
                 Map<String, Collection<String>> result = new LinkedHashMap<>();
-                Collection<String> headerNames = headers.getHeaderSet();
-                if (headerNames != null) {
-                    for (String name : headerNames) {
-                        ArrayList<String> values = headers.getHeaderValues(name);
-                        if (values != null) {
-                            result.put(name, values);
-                        }
+                // Iterate over HeaderSet (it's Iterable)
+                for (String name : headers) {
+                    ArrayList<String> values = headers.getHeaderValues(name);
+                    if (values != null) {
+                        result.put(name, values);
                     }
                 }
                 return result;
@@ -320,14 +322,17 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("  (null)\n");
             return;
         }
-        Collection<String> names = headers.getHeaderSet();
-        if (names == null || names.isEmpty()) {
-            debugInfo.append("  (empty)\n");
-            return;
+        int count = 0;
+        StringBuilder headerLog = new StringBuilder();
+        for (String name : headers) {
+            headerLog.append("  ").append(name).append(": ").append(headers.getHeaderValues(name)).append("\n");
+            count++;
         }
-        debugInfo.append("  Count: ").append(names.size()).append("\n");
-        for (String name : names) {
-            debugInfo.append("  ").append(name).append(": ").append(headers.getHeaderValues(name)).append("\n");
+        if (count == 0) {
+            debugInfo.append("  (empty)\n");
+        } else {
+            debugInfo.append("  Count: ").append(count).append("\n");
+            debugInfo.append(headerLog);
         }
     }
 
@@ -338,14 +343,17 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("  (null)\n");
             return;
         }
-        Collection<String> names = queryParams.getHeaderSet();
-        if (names == null || names.isEmpty()) {
-            debugInfo.append("  (empty)\n");
-            return;
+        int count = 0;
+        StringBuilder paramLog = new StringBuilder();
+        for (String name : queryParams) {
+            paramLog.append("  ").append(name).append(": ").append(queryParams.getHeaderValues(name)).append("\n");
+            count++;
         }
-        debugInfo.append("  Count: ").append(names.size()).append("\n");
-        for (String name : names) {
-            debugInfo.append("  ").append(name).append(": ").append(queryParams.getHeaderValues(name)).append("\n");
+        if (count == 0) {
+            debugInfo.append("  (empty)\n");
+        } else {
+            debugInfo.append("  Count: ").append(count).append("\n");
+            debugInfo.append(paramLog);
         }
     }
 

@@ -220,11 +220,12 @@ void logHeaders(HeaderSet headers) {
         Trace.info("[DEBUG] Headers: null")
         return
     }
-    def names = headers.getHeaderSet()
-    Trace.info("[DEBUG] Headers count: ${names?.size() ?: 0}")
-    names?.each { name ->
+    int count = 0
+    headers.each { name ->
         Trace.info("[DEBUG]   ${name}: ${headers.getHeaderValues(name)}")
+        count++
     }
+    Trace.info("[DEBUG] Headers count: ${count}")
 }
 
 void logQueryParams(QueryStringHeaderSet params) {
@@ -232,11 +233,12 @@ void logQueryParams(QueryStringHeaderSet params) {
         Trace.info("[DEBUG] QueryParams: null")
         return
     }
-    def names = params.getHeaderSet()
-    Trace.info("[DEBUG] QueryParams count: ${names?.size() ?: 0}")
-    names?.each { name ->
+    int count = 0
+    params.each { name ->
         Trace.info("[DEBUG]   ${name}: ${params.getHeaderValues(name)}")
+        count++
     }
+    Trace.info("[DEBUG] QueryParams count: ${count}")
 }
 
 // Execute
