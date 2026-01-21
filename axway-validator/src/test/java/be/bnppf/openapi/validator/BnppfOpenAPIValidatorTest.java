@@ -1,6 +1,7 @@
 package be.bnppf.openapi.validator;
 
 import com.vordel.mime.HeaderSet;
+import com.vordel.mime.QueryStringHeaderSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -93,8 +94,8 @@ class BnppfOpenAPIValidatorTest {
         return headers;
     }
 
-    private HeaderSet createQueryParams(String... params) {
-        HeaderSet queryParams = new HeaderSet();
+    private QueryStringHeaderSet createQueryParams(String... params) {
+        QueryStringHeaderSet queryParams = new QueryStringHeaderSet();
         for (String param : params) {
             String[] parts = param.split("=", 2);
             if (parts.length == 2) {

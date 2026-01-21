@@ -2,6 +2,7 @@ import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
 import com.vordel.mime.HeaderSet
+import com.vordel.mime.QueryStringHeaderSet
 import com.vordel.trace.Trace
 
 /**
@@ -91,7 +92,7 @@ def invoke(Message msg) {
         } else {
             // Request validation
             HeaderSet headers = (HeaderSet) getHeaders(msg)
-            HeaderSet queryParams = (HeaderSet) getQueryParams(msg)
+            QueryStringHeaderSet queryParams = (QueryStringHeaderSet) getQueryParams(msg)
 
             if (debugEnabled) {
                 Trace.info("[DEBUG] Headers: " + headers)

@@ -50,4 +50,21 @@ public class HeaderSet implements Iterable<String> {
     public int size() {
         return headers.size();
     }
+
+    public java.util.Collection<String> getHeaderSet() {
+        return headers.keySet();
+    }
+
+    public void remove(String name) {
+        String keyToRemove = null;
+        for (String key : headers.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                keyToRemove = key;
+                break;
+            }
+        }
+        if (keyToRemove != null) {
+            headers.remove(keyToRemove);
+        }
+    }
 }

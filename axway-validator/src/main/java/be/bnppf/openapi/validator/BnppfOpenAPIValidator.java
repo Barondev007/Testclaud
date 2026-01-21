@@ -21,10 +21,11 @@ import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 import com.atlassian.oai.validator.report.ValidationReport.Message;
 import com.vordel.mime.HeaderSet;
+import com.vordel.mime.QueryStringHeaderSet;
 
 /**
  * OpenAPI Validator for Axway API Gateway.
- * Uses Axway HeaderSet type directly.
+ * Uses Axway HeaderSet for headers and QueryStringHeaderSet for query parameters.
  */
 public class BnppfOpenAPIValidator {
 
@@ -106,7 +107,7 @@ public class BnppfOpenAPIValidator {
     // ========================================================================
 
     public ValidationResult validateRequest(String payload, String verb, String path,
-            HeaderSet queryParams, HeaderSet headers) {
+            QueryStringHeaderSet queryParams, HeaderSet headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -115,7 +116,7 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
             logDebugHeaderSet("HEADERS", headers);
-            logDebugHeaderSet("QUERY PARAMS", queryParams);
+            logDebugQueryParams("QUERY PARAMS", queryParams);
         }
 
         ValidationReport report = performRequestValidation(payload, verb, path, queryParams, headers);
@@ -135,7 +136,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport performRequestValidation(final String payload, final String verb, String path,
-            final HeaderSet queryParams, final HeaderSet headers) {
+            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
 
         ValidationReport validationReport = null;
         String originalPath = path;
@@ -182,7 +183,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport executeRequestValidation(final String payload, final String verb, final String path,
-            final HeaderSet queryParams, final HeaderSet headers) {
+            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
 
         Request request = new Request() {
             @Override
@@ -329,6 +330,25 @@ public class BnppfOpenAPIValidator {
         int count = 0;
         for (String name : headerSet) {
             debugInfo.append("  ").append(name).append(": ").append(headerSet.getHeaderValues(name)).append("\n");
+            count++;
+        }
+        if (count == 0) {
+            debugInfo.append("  (empty)\n");
+        } else {
+            debugInfo.insert(debugInfo.lastIndexOf("=== " + label) + label.length() + 8, "Count: " + count + "\n  ");
+        }
+    }
+
+    private void logDebugQueryParams(String label, QueryStringHeaderSet queryParams) {
+        if (!debugEnabled) return;
+        debugInfo.append("=== ").append(label).append(" ===\n");
+        if (queryParams == null) {
+            debugInfo.append("  (null)\n");
+            return;
+        }
+        int count = 0;
+        for (String name : queryParams) {
+            debugInfo.append("  ").append(name).append(": ").append(queryParams.getHeaderValues(name)).append("\n");
             count++;
         }
         if (count == 0) {
