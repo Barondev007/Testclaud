@@ -41,7 +41,7 @@ def invoke(Message msg) {
 
         if (debugEnabled) {
             Trace.info("========== OpenAPI Validation V3 ==========")
-            Trace.info("[DEBUG] Validation level: ${level}")
+            Trace.info("[DEBUG] Validation level: " + level)
         }
 
         // Get spec content
@@ -68,10 +68,10 @@ def invoke(Message msg) {
         def body = extractBody(msg)
 
         if (debugEnabled) {
-            Trace.info("[DEBUG] Validation type: ${isResponseValidation ? 'response' : 'request'}")
-            Trace.info("[DEBUG] HTTP Method: ${httpMethod}")
-            Trace.info("[DEBUG] Request Path: ${requestPath}")
-            Trace.info("[DEBUG] Body length: ${body?.length() ?: 0} chars")
+            Trace.info("[DEBUG] Validation type: " + (isResponseValidation ? "response" : "request"))
+            Trace.info("[DEBUG] HTTP Method: " + httpMethod)
+            Trace.info("[DEBUG] Request Path: " + requestPath)
+            Trace.info("[DEBUG] Body length: " + (body != null ? body.length() : 0) + " chars")
         }
 
         ValidationResult result
@@ -82,8 +82,8 @@ def invoke(Message msg) {
             HeaderSet headers = (HeaderSet) getHeaders(msg)
 
             if (debugEnabled) {
-                Trace.info("[DEBUG] Response status: ${statusCode}")
-                Trace.info("[DEBUG] Headers: ${headers}")
+                Trace.info("[DEBUG] Response status: " + statusCode)
+                Trace.info("[DEBUG] Headers: " + headers)
             }
 
             result = validator.validateResponse(body, httpMethod, requestPath, statusCode, headers)
@@ -95,8 +95,8 @@ def invoke(Message msg) {
             QueryStringHeaderSet queryParams = (QueryStringHeaderSet) getQueryParams(msg)
 
             if (debugEnabled) {
-                Trace.info("[DEBUG] Headers: ${headers}")
-                Trace.info("[DEBUG] QueryParams: ${queryParams}")
+                Trace.info("[DEBUG] Headers: " + headers)
+                Trace.info("[DEBUG] QueryParams: " + queryParams)
             }
 
             result = validator.validateRequest(body, httpMethod, requestPath, queryParams, headers)
@@ -210,7 +210,7 @@ def parseStatusCode(Object status) {
         if (status instanceof Number) return status.intValue()
         return Integer.parseInt(status.toString().trim())
     } catch (Exception e) {
-        Trace.warn("Could not parse status code '${status}', defaulting to 200")
+        Trace.warn("Could not parse status code '" + status + "', defaulting to 200")
         return 200
     }
 }
