@@ -1,7 +1,6 @@
 package be.bnppf.openapi.validator;
 
 import com.vordel.mime.HeaderSet;
-import com.vordel.mime.QueryStringHeaderSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -11,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for BnppfOpenAPIValidator.
- * Uses Axway stub types (HeaderSet, QueryStringHeaderSet).
+ * Uses test stub HeaderSet class.
  */
 class BnppfOpenAPIValidatorTest {
 
@@ -94,8 +93,15 @@ class BnppfOpenAPIValidatorTest {
         return headers;
     }
 
-    private QueryStringHeaderSet createQueryParams(String queryString) {
-        return new QueryStringHeaderSet(queryString);
+    private HeaderSet createQueryParams(String... params) {
+        HeaderSet queryParams = new HeaderSet();
+        for (String param : params) {
+            String[] parts = param.split("=", 2);
+            if (parts.length == 2) {
+                queryParams.addHeader(parts[0], parts[1]);
+            }
+        }
+        return queryParams;
     }
 
     @Test
@@ -265,7 +271,7 @@ class BnppfOpenAPIValidatorTest {
     void testGetUsersWithQueryParams() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        QueryStringHeaderSet queryParams = createQueryParams("limit=10");
+        HeaderSet queryParams = createQueryParams("limit=10");
 
         ValidationResult result = validator.validateRequest(null, "GET", "/users", queryParams, null);
 
@@ -301,7 +307,7 @@ class BnppfOpenAPIValidatorTest {
     void testQueryParamsWithMultipleValues() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        QueryStringHeaderSet queryParams = createQueryParams("limit=10&offset=0");
+        HeaderSet queryParams = createQueryParams("limit=10", "offset=0");
 
         ValidationResult result = validator.validateRequest(null, "GET", "/users", queryParams, null);
 
