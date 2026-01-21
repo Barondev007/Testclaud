@@ -94,6 +94,21 @@ def invoke(Message msg) {
             def headers = getHeaders(msg)
             def queryParams = getQueryParams(msg)
 
+            if (debugEnabled) {
+                Trace.info("[DEBUG] Headers object: ${headers != null ? headers.getClass().getName() : 'NULL'}")
+                Trace.info("[DEBUG] QueryParams object: ${queryParams != null ? queryParams.getClass().getName() : 'NULL'}")
+
+                // Try to log header contents
+                if (headers != null) {
+                    try {
+                        def headerSet = headers.getHeaderSet()
+                        Trace.info("[DEBUG] Header names: ${headerSet}")
+                    } catch (Exception e) {
+                        Trace.info("[DEBUG] Could not get header names: ${e.getMessage()}")
+                    }
+                }
+            }
+
             result = validator.validateRequestAxway(body, httpMethod, requestPath, queryParams, headers)
             msg.put("openapi.validation.type", "request")
         }
@@ -188,15 +203,71 @@ def getHeaders(Message msg) {
         "http.header",
         "http.request.headers",
         "headers",
-        "content.headers"
+        "content.headers",
+        "leg0.http.headers",
+        "leg1.http.headers",
+        "http.response.headers",
+        "request.headers"
     ]
+
+    // Check debug mode
+    def debugAttr = msg.get("openapi.validation.debug")
+    boolean debugEnabled = (debugAttr != null && debugAttr.toString().equalsIgnoreCase("true"))
+
+    if (debugEnabled) {
+        Trace.info("[DEBUG] Searching for headers in message attributes...")
+        // List all available attributes that might contain headers
+        for (attrName in headerAttributeNames) {
+            def val = msg.get(attrName)
+            if (val != null) {
+                Trace.info("[DEBUG] Found attribute '${attrName}' = ${val.getClass().getName()}")
+            }
+        }
+    }
 
     for (attrName in headerAttributeNames) {
         def headers = msg.get(attrName)
-        // Check by class name to avoid direct dependency on HeaderSet
-        if (headers != null && headers.getClass().getName().contains("HeaderSet")) {
-            return headers
+        if (headers != null) {
+            def className = headers.getClass().getName()
+            if (debugEnabled) {
+                Trace.info("[DEBUG] Checking '${attrName}': class=${className}")
+            }
+            // Check by class name to avoid direct dependency on HeaderSet
+            if (className.contains("HeaderSet") || className.contains("Headers")) {
+                if (debugEnabled) {
+                    Trace.info("[DEBUG] Found headers in '${attrName}'")
+                }
+                return headers
+            }
         }
+    }
+
+    // Try to get headers from the HTTP state if available
+    try {
+        def httpState = msg.get("http")
+        if (httpState != null) {
+            if (debugEnabled) {
+                Trace.info("[DEBUG] Found 'http' object: ${httpState.getClass().getName()}")
+            }
+            // Try to get headers from HTTP state
+            if (httpState.metaClass.respondsTo(httpState, "getHeaders")) {
+                def headers = httpState.getHeaders()
+                if (headers != null) {
+                    if (debugEnabled) {
+                        Trace.info("[DEBUG] Got headers from http.getHeaders()")
+                    }
+                    return headers
+                }
+            }
+        }
+    } catch (Exception e) {
+        if (debugEnabled) {
+            Trace.info("[DEBUG] Error getting headers from http state: ${e.getMessage()}")
+        }
+    }
+
+    if (debugEnabled) {
+        Trace.info("[DEBUG] No headers found in any known attribute")
     }
 
     // Return null if no headers found
