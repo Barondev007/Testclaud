@@ -21,6 +21,15 @@
     </properties>
 
     <dependencies>
+        <!-- Axway Vordel MIME library - provided at runtime by Axway -->
+        <dependency>
+            <groupId>com.vordel</groupId>
+            <artifactId>vordel-mime</artifactId>
+            <version>7.7.20230830</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/vordel-mime-7.7.20230830.jar</systemPath>
+        </dependency>
+
         <!-- Atlassian Swagger Request Validator Core -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>

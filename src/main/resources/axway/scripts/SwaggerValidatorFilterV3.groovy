@@ -1,6 +1,7 @@
 import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
+import com.vordel.mime.HeaderSet
 import com.vordel.trace.Trace
 
 /**
@@ -11,8 +12,8 @@ import com.vordel.trace.Trace
  * - content.body              : Payload to validate
  * - http.request.verb         : HTTP method (GET, POST, PUT, DELETE, etc.)
  * - http.request.path         : Request path
- * - http.headers / headers    : Request/Response headers
- * - http.querystring          : Query parameters
+ * - http.headers / headers    : Request/Response headers (HeaderSet)
+ * - http.querystring          : Query parameters (HeaderSet)
  * - http.response.status      : Response status code (if set, validates as response)
  * - openapi.validation.level  : Validation level (light, lenient, strict - default: strict)
  * - openapi.validation.debug  : Enable debug logging ("true" to enable)
@@ -77,11 +78,11 @@ def invoke(Message msg) {
         if (isResponseValidation) {
             // Response validation
             int statusCode = parseStatusCode(responseStatus)
-            def headers = getHeaders(msg)
+            HeaderSet headers = (HeaderSet) getHeaders(msg)
 
             if (debugEnabled) {
                 Trace.info("[DEBUG] Response status: " + statusCode)
-                Trace.info("[DEBUG] Headers type: " + (headers != null ? headers.getClass().getName() : "null"))
+                Trace.info("[DEBUG] Headers: " + headers)
             }
 
             result = validator.validateResponse(body, httpMethod, requestPath, statusCode, headers)
@@ -89,12 +90,12 @@ def invoke(Message msg) {
 
         } else {
             // Request validation
-            def headers = getHeaders(msg)
-            def queryParams = getQueryParams(msg)
+            HeaderSet headers = (HeaderSet) getHeaders(msg)
+            HeaderSet queryParams = (HeaderSet) getQueryParams(msg)
 
             if (debugEnabled) {
-                Trace.info("[DEBUG] Headers type: " + (headers != null ? headers.getClass().getName() : "null"))
-                Trace.info("[DEBUG] QueryParams type: " + (queryParams != null ? queryParams.getClass().getName() : "null"))
+                Trace.info("[DEBUG] Headers: " + headers)
+                Trace.info("[DEBUG] QueryParams: " + queryParams)
             }
 
             result = validator.validateRequest(body, httpMethod, requestPath, queryParams, headers)
