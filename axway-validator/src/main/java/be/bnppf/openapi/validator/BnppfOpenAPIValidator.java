@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -25,7 +26,7 @@ import com.vordel.mime.QueryStringHeaderSet;
 
 /**
  * OpenAPI Validator for Axway API Gateway.
- * Uses Axway types (HeaderSet, QueryStringHeaderSet) directly.
+ * Supports both Axway types (HeaderSet, QueryStringHeaderSet) and Map types.
  */
 public class BnppfOpenAPIValidator {
 
@@ -103,11 +104,11 @@ public class BnppfOpenAPIValidator {
     }
 
     // ========================================================================
-    // REQUEST VALIDATION
+    // REQUEST VALIDATION - Object parameters (flexible for Groovy)
     // ========================================================================
 
     public ValidationResult validateRequest(String payload, String verb, String path,
-            QueryStringHeaderSet queryParams, HeaderSet headers) {
+            Object queryParams, Object headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -115,11 +116,20 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("Verb: ").append(verb).append("\n");
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
-            logDebugHeaders(headers);
-            logDebugQueryParams(queryParams);
+            debugInfo.append("QueryParams type: ").append(queryParams != null ? queryParams.getClass().getName() : "null").append("\n");
+            debugInfo.append("Headers type: ").append(headers != null ? headers.getClass().getName() : "null").append("\n");
         }
 
-        ValidationReport report = performRequestValidation(payload, verb, path, queryParams, headers);
+        // Convert to maps for internal processing
+        Map<String, Collection<String>> headersMap = convertToMap(headers);
+        Map<String, Collection<String>> queryParamsMap = convertToMap(queryParams);
+
+        if (debugEnabled) {
+            logDebugMap("HEADERS", headersMap);
+            logDebugMap("QUERY PARAMS", queryParamsMap);
+        }
+
+        ValidationReport report = performRequestValidation(payload, verb, path, queryParamsMap, headersMap);
         ValidationResult result = ValidationResult.fromReport(report, validationLevel, "request");
 
         if (debugEnabled) {
@@ -136,7 +146,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport performRequestValidation(final String payload, final String verb, String path,
-            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
+            final Map<String, Collection<String>> queryParams, final Map<String, Collection<String>> headers) {
 
         ValidationReport validationReport = null;
         String originalPath = path;
@@ -183,7 +193,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport executeRequestValidation(final String payload, final String verb, final String path,
-            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
+            final Map<String, Collection<String>> queryParams, final Map<String, Collection<String>> headers) {
 
         Request request = new Request() {
             @Override
@@ -204,18 +214,13 @@ public class BnppfOpenAPIValidator {
             @Override
             public Collection<String> getQueryParameters() {
                 if (queryParams == null) return Collections.emptyList();
-                // Iterate over QueryStringHeaderSet (it's Iterable)
-                ArrayList<String> params = new ArrayList<>();
-                for (String name : queryParams) {
-                    params.add(name);
-                }
-                return params;
+                return queryParams.keySet();
             }
 
             @Override
             public Collection<String> getQueryParameterValues(String name) {
                 if (queryParams == null) return Collections.emptyList();
-                ArrayList<String> values = queryParams.getHeaderValues(name);
+                Collection<String> values = queryParams.get(name);
                 if (values == null) return Collections.emptyList();
                 // URL decode values
                 ArrayList<String> decoded = new ArrayList<>();
@@ -232,21 +237,13 @@ public class BnppfOpenAPIValidator {
             @Override
             public Map<String, Collection<String>> getHeaders() {
                 if (headers == null) return Collections.emptyMap();
-                Map<String, Collection<String>> result = new LinkedHashMap<>();
-                // Iterate over HeaderSet (it's Iterable)
-                for (String name : headers) {
-                    ArrayList<String> values = headers.getHeaderValues(name);
-                    if (values != null) {
-                        result.put(name, values);
-                    }
-                }
-                return result;
+                return headers;
             }
 
             @Override
             public Collection<String> getHeaderValues(String name) {
                 if (headers == null) return Collections.emptyList();
-                ArrayList<String> values = headers.getHeaderValues(name);
+                Collection<String> values = headers.get(name);
                 return (values == null) ? Collections.emptyList() : values;
             }
         };
@@ -255,10 +252,10 @@ public class BnppfOpenAPIValidator {
     }
 
     // ========================================================================
-    // RESPONSE VALIDATION
+    // RESPONSE VALIDATION - Object parameters (flexible for Groovy)
     // ========================================================================
 
-    public ValidationResult validateResponse(String payload, String verb, String path, int status, HeaderSet headers) {
+    public ValidationResult validateResponse(String payload, String verb, String path, int status, Object headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -267,10 +264,16 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Status: ").append(status).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
-            logDebugHeaders(headers);
+            debugInfo.append("Headers type: ").append(headers != null ? headers.getClass().getName() : "null").append("\n");
         }
 
-        ValidationReport report = executeResponseValidation(payload, verb, path, status, headers);
+        Map<String, Collection<String>> headersMap = convertToMap(headers);
+
+        if (debugEnabled) {
+            logDebugMap("HEADERS", headersMap);
+        }
+
+        ValidationReport report = executeResponseValidation(payload, verb, path, status, headersMap);
         ValidationResult result = ValidationResult.fromReport(report, validationLevel, "response");
 
         if (debugEnabled) {
@@ -287,7 +290,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport executeResponseValidation(final String payload, String verb, String path,
-            final int status, final HeaderSet headers) {
+            final int status, final Map<String, Collection<String>> headers) {
 
         Response response = new Response() {
             @Override
@@ -298,7 +301,7 @@ public class BnppfOpenAPIValidator {
             @Override
             public Collection<String> getHeaderValues(String name) {
                 if (headers == null) return Collections.emptyList();
-                ArrayList<String> values = headers.getHeaderValues(name);
+                Collection<String> values = headers.get(name);
                 return (values == null) ? Collections.emptyList() : values;
             }
 
@@ -312,53 +315,84 @@ public class BnppfOpenAPIValidator {
     }
 
     // ========================================================================
+    // TYPE CONVERSION
+    // ========================================================================
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Collection<String>> convertToMap(Object obj) {
+        if (obj == null) {
+            return Collections.emptyMap();
+        }
+
+        // Already a Map
+        if (obj instanceof Map) {
+            Map<String, Collection<String>> result = new LinkedHashMap<>();
+            Map<?, ?> map = (Map<?, ?>) obj;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = entry.getKey().toString();
+                Object value = entry.getValue();
+                if (value instanceof Collection) {
+                    ArrayList<String> values = new ArrayList<>();
+                    for (Object v : (Collection<?>) value) {
+                        values.add(v.toString());
+                    }
+                    result.put(key, values);
+                } else if (value != null) {
+                    ArrayList<String> values = new ArrayList<>();
+                    values.add(value.toString());
+                    result.put(key, values);
+                }
+            }
+            return result;
+        }
+
+        // HeaderSet or similar Iterable with getHeaderValues method
+        if (obj instanceof Iterable) {
+            Map<String, Collection<String>> result = new LinkedHashMap<>();
+            try {
+                java.lang.reflect.Method getValuesMethod = obj.getClass().getMethod("getHeaderValues", String.class);
+                for (Object name : (Iterable<?>) obj) {
+                    String headerName = name.toString();
+                    Object values = getValuesMethod.invoke(obj, headerName);
+                    if (values instanceof Collection) {
+                        ArrayList<String> valueList = new ArrayList<>();
+                        for (Object v : (Collection<?>) values) {
+                            valueList.add(v.toString());
+                        }
+                        result.put(headerName, valueList);
+                    } else if (values != null) {
+                        ArrayList<String> valueList = new ArrayList<>();
+                        valueList.add(values.toString());
+                        result.put(headerName, valueList);
+                    }
+                }
+                return result;
+            } catch (Exception e) {
+                // Fall through to empty map
+            }
+        }
+
+        return Collections.emptyMap();
+    }
+
+    // ========================================================================
     // DEBUG LOGGING
     // ========================================================================
 
-    private void logDebugHeaders(HeaderSet headers) {
+    private void logDebugMap(String name, Map<String, Collection<String>> map) {
         if (!debugEnabled) return;
-        debugInfo.append("=== HEADERS ===\n");
-        if (headers == null) {
-            debugInfo.append("  (null)\n");
+        debugInfo.append("=== ").append(name).append(" ===\n");
+        if (map == null || map.isEmpty()) {
+            debugInfo.append("  (empty)\n");
             return;
         }
-        int count = 0;
-        StringBuilder headerLog = new StringBuilder();
-        for (String name : headers) {
-            headerLog.append("  ").append(name).append(": ").append(headers.getHeaderValues(name)).append("\n");
-            count++;
-        }
-        if (count == 0) {
-            debugInfo.append("  (empty)\n");
-        } else {
-            debugInfo.append("  Count: ").append(count).append("\n");
-            debugInfo.append(headerLog);
-        }
-    }
-
-    private void logDebugQueryParams(QueryStringHeaderSet queryParams) {
-        if (!debugEnabled) return;
-        debugInfo.append("=== QUERY PARAMS ===\n");
-        if (queryParams == null) {
-            debugInfo.append("  (null)\n");
-            return;
-        }
-        int count = 0;
-        StringBuilder paramLog = new StringBuilder();
-        for (String name : queryParams) {
-            paramLog.append("  ").append(name).append(": ").append(queryParams.getHeaderValues(name)).append("\n");
-            count++;
-        }
-        if (count == 0) {
-            debugInfo.append("  (empty)\n");
-        } else {
-            debugInfo.append("  Count: ").append(count).append("\n");
-            debugInfo.append(paramLog);
+        debugInfo.append("  Count: ").append(map.size()).append("\n");
+        for (Map.Entry<String, Collection<String>> entry : map.entrySet()) {
+            debugInfo.append("  ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
         }
     }
 
     private void logMessage(Message message) {
-        // Log to Axway trace if available
         try {
             Class<?> traceClass = Class.forName("com.vordel.trace.Trace");
             java.lang.reflect.Method method = traceClass.getMethod("info", String.class);

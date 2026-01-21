@@ -1,8 +1,6 @@
 import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
-import com.vordel.mime.HeaderSet
-import com.vordel.mime.QueryStringHeaderSet
 import com.vordel.trace.Trace
 
 /**
@@ -13,8 +11,8 @@ import com.vordel.trace.Trace
  * - content.body              : Payload to validate
  * - http.request.verb         : HTTP method (GET, POST, PUT, DELETE, etc.)
  * - http.request.path         : Request path
- * - http.headers / headers    : Request/Response headers (HeaderSet)
- * - http.querystring          : Query parameters (QueryStringHeaderSet)
+ * - http.headers / headers    : Request/Response headers
+ * - http.querystring          : Query parameters
  * - http.response.status      : Response status code (if set, validates as response)
  * - openapi.validation.level  : Validation level (light, lenient, strict - default: strict)
  * - openapi.validation.debug  : Enable debug logging ("true" to enable)
@@ -79,11 +77,11 @@ def invoke(Message msg) {
         if (isResponseValidation) {
             // Response validation
             int statusCode = parseStatusCode(responseStatus)
-            HeaderSet headers = getHeaders(msg)
+            def headers = getHeaders(msg)
 
             if (debugEnabled) {
                 Trace.info("[DEBUG] Response status: ${statusCode}")
-                logHeaders(headers)
+                Trace.info("[DEBUG] Headers: ${headers?.getClass()?.getName()}")
             }
 
             result = validator.validateResponse(body, httpMethod, requestPath, statusCode, headers)
@@ -91,12 +89,12 @@ def invoke(Message msg) {
 
         } else {
             // Request validation
-            HeaderSet headers = getHeaders(msg)
-            QueryStringHeaderSet queryParams = getQueryParams(msg)
+            def headers = getHeaders(msg)
+            def queryParams = getQueryParams(msg)
 
             if (debugEnabled) {
-                logHeaders(headers)
-                logQueryParams(queryParams)
+                Trace.info("[DEBUG] Headers: ${headers?.getClass()?.getName()}")
+                Trace.info("[DEBUG] QueryParams: ${queryParams?.getClass()?.getName()}")
             }
 
             result = validator.validateRequest(body, httpMethod, requestPath, queryParams, headers)
@@ -178,26 +176,26 @@ def extractBody(Message msg) {
     }
 }
 
-HeaderSet getHeaders(Message msg) {
+def getHeaders(Message msg) {
     // Try common attribute names for headers
     def attributeNames = ["headers", "http.headers", "http.request.headers"]
 
     for (attrName in attributeNames) {
         def headers = msg.get(attrName)
-        if (headers != null && headers instanceof HeaderSet) {
+        if (headers != null) {
             return headers
         }
     }
     return null
 }
 
-QueryStringHeaderSet getQueryParams(Message msg) {
+def getQueryParams(Message msg) {
     // Try common attribute names for query params
     def attributeNames = ["http.querystring", "http.request.querystring", "querystring"]
 
     for (attrName in attributeNames) {
         def params = msg.get(attrName)
-        if (params != null && params instanceof QueryStringHeaderSet) {
+        if (params != null) {
             return params
         }
     }
@@ -213,32 +211,6 @@ def parseStatusCode(Object status) {
         Trace.warn("Could not parse status code '${status}', defaulting to 200")
         return 200
     }
-}
-
-void logHeaders(HeaderSet headers) {
-    if (headers == null) {
-        Trace.info("[DEBUG] Headers: null")
-        return
-    }
-    int count = 0
-    headers.each { name ->
-        Trace.info("[DEBUG]   ${name}: ${headers.getHeaderValues(name)}")
-        count++
-    }
-    Trace.info("[DEBUG] Headers count: ${count}")
-}
-
-void logQueryParams(QueryStringHeaderSet params) {
-    if (params == null) {
-        Trace.info("[DEBUG] QueryParams: null")
-        return
-    }
-    int count = 0
-    params.each { name ->
-        Trace.info("[DEBUG]   ${name}: ${params.getHeaderValues(name)}")
-        count++
-    }
-    Trace.info("[DEBUG] QueryParams count: ${count}")
 }
 
 // Execute
