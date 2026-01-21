@@ -20,12 +20,10 @@ import com.atlassian.oai.validator.report.LevelResolver;
 import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 import com.atlassian.oai.validator.report.ValidationReport.Message;
-import com.vordel.mime.HeaderSet;
-import com.vordel.mime.QueryStringHeaderSet;
 
 /**
  * OpenAPI Validator for Axway API Gateway.
- * Uses Axway types (HeaderSet, QueryStringHeaderSet) directly.
+ * Works with any header/queryParam types via reflection.
  */
 public class BnppfOpenAPIValidator {
 
@@ -107,7 +105,7 @@ public class BnppfOpenAPIValidator {
     // ========================================================================
 
     public ValidationResult validateRequest(String payload, String verb, String path,
-            QueryStringHeaderSet queryParams, HeaderSet headers) {
+            Object queryParams, Object headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -115,8 +113,8 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("Verb: ").append(verb).append("\n");
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
-            logDebugHeaders(headers);
-            logDebugQueryParams(queryParams);
+            logDebugObject("HEADERS", headers);
+            logDebugObject("QUERY PARAMS", queryParams);
         }
 
         ValidationReport report = performRequestValidation(payload, verb, path, queryParams, headers);
@@ -136,7 +134,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport performRequestValidation(final String payload, final String verb, String path,
-            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
+            final Object queryParams, final Object headers) {
 
         ValidationReport validationReport = null;
         String originalPath = path;
@@ -183,7 +181,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport executeRequestValidation(final String payload, final String verb, final String path,
-            final QueryStringHeaderSet queryParams, final HeaderSet headers) {
+            final Object queryParams, final Object headers) {
 
         Request request = new Request() {
             @Override
@@ -203,19 +201,12 @@ public class BnppfOpenAPIValidator {
 
             @Override
             public Collection<String> getQueryParameters() {
-                if (queryParams == null) return Collections.emptyList();
-                // Iterate over QueryStringHeaderSet to get parameter names
-                ArrayList<String> names = new ArrayList<>();
-                for (String name : queryParams) {
-                    names.add(name);
-                }
-                return names;
+                return getNames(queryParams);
             }
 
             @Override
             public Collection<String> getQueryParameterValues(String name) {
-                if (queryParams == null) return Collections.emptyList();
-                ArrayList<String> values = getValuesFromQueryParams(queryParams, name);
+                Collection<String> values = getValues(queryParams, name);
                 if (values == null || values.isEmpty()) return Collections.emptyList();
                 ArrayList<String> decoded = new ArrayList<>();
                 for (String value : values) {
@@ -230,14 +221,12 @@ public class BnppfOpenAPIValidator {
 
             @Override
             public Map<String, Collection<String>> getHeaders() {
-                return convertHeaderSetToMap(headers);
+                return convertToMap(headers);
             }
 
             @Override
             public Collection<String> getHeaderValues(String name) {
-                if (headers == null) return Collections.emptyList();
-                ArrayList<String> values = headers.getHeaderValues(name);
-                return (values == null) ? Collections.emptyList() : values;
+                return getValues(headers, name);
             }
         };
 
@@ -248,7 +237,7 @@ public class BnppfOpenAPIValidator {
     // RESPONSE VALIDATION
     // ========================================================================
 
-    public ValidationResult validateResponse(String payload, String verb, String path, int status, HeaderSet headers) {
+    public ValidationResult validateResponse(String payload, String verb, String path, int status, Object headers) {
 
         if (debugEnabled) {
             debugInfo = new StringBuilder();
@@ -257,7 +246,7 @@ public class BnppfOpenAPIValidator {
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Status: ").append(status).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
-            logDebugHeaders(headers);
+            logDebugObject("HEADERS", headers);
         }
 
         ValidationReport report = executeResponseValidation(payload, verb, path, status, headers);
@@ -277,7 +266,7 @@ public class BnppfOpenAPIValidator {
     }
 
     private ValidationReport executeResponseValidation(final String payload, String verb, String path,
-            final int status, final HeaderSet headers) {
+            final int status, final Object headers) {
 
         Response response = new Response() {
             @Override
@@ -287,9 +276,7 @@ public class BnppfOpenAPIValidator {
 
             @Override
             public Collection<String> getHeaderValues(String name) {
-                if (headers == null) return Collections.emptyList();
-                ArrayList<String> values = headers.getHeaderValues(name);
-                return (values == null) ? Collections.emptyList() : values;
+                return getValues(headers, name);
             }
 
             @Override
@@ -302,37 +289,55 @@ public class BnppfOpenAPIValidator {
     }
 
     // ========================================================================
-    // HELPER METHODS FOR AXWAY TYPES
+    // REFLECTION HELPERS FOR AXWAY TYPES
     // ========================================================================
 
     @SuppressWarnings("unchecked")
-    private static ArrayList<String> getValuesFromQueryParams(QueryStringHeaderSet queryParams, String name) {
-        if (queryParams == null) return null;
-        try {
-            // Try getValues first (common for query params)
-            try {
-                java.lang.reflect.Method method = queryParams.getClass().getMethod("getValues", String.class);
-                return (ArrayList<String>) method.invoke(queryParams, name);
-            } catch (NoSuchMethodException e) {
-                // Fall back to getHeaderValues
-                return queryParams.getHeaderValues(name);
+    private Collection<String> getNames(Object obj) {
+        if (obj == null) return Collections.emptyList();
+
+        // If it's Iterable, collect all names
+        if (obj instanceof Iterable) {
+            ArrayList<String> names = new ArrayList<>();
+            for (Object name : (Iterable<?>) obj) {
+                names.add(name.toString());
             }
-        } catch (Exception e) {
-            return null;
+            return names;
         }
+
+        return Collections.emptyList();
     }
 
-    // ========================================================================
-    // CONVERSION FOR ATLASSIAN VALIDATOR
-    // ========================================================================
+    @SuppressWarnings("unchecked")
+    private Collection<String> getValues(Object obj, String name) {
+        if (obj == null || name == null) return Collections.emptyList();
 
-    private Map<String, Collection<String>> convertHeaderSetToMap(HeaderSet headers) {
-        if (headers == null) return Collections.emptyMap();
+        // Try getHeaderValues method
+        try {
+            java.lang.reflect.Method method = obj.getClass().getMethod("getHeaderValues", String.class);
+            Object result = method.invoke(obj, name);
+            if (result instanceof Collection) {
+                ArrayList<String> values = new ArrayList<>();
+                for (Object v : (Collection<?>) result) {
+                    values.add(v.toString());
+                }
+                return values;
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        return Collections.emptyList();
+    }
+
+    private Map<String, Collection<String>> convertToMap(Object obj) {
+        if (obj == null) return Collections.emptyMap();
+
         Map<String, Collection<String>> result = new LinkedHashMap<>();
-        // HeaderSet is Iterable - iterate directly
-        for (String name : headers) {
-            ArrayList<String> values = headers.getHeaderValues(name);
-            if (values != null) {
+        Collection<String> names = getNames(obj);
+        for (String name : names) {
+            Collection<String> values = getValues(obj, name);
+            if (!values.isEmpty()) {
                 result.put(name, values);
             }
         }
@@ -343,41 +348,22 @@ public class BnppfOpenAPIValidator {
     // DEBUG LOGGING
     // ========================================================================
 
-    private void logDebugHeaders(HeaderSet headers) {
+    private void logDebugObject(String label, Object obj) {
         if (!debugEnabled) return;
-        debugInfo.append("=== HEADERS ===\n");
-        if (headers == null) {
+        debugInfo.append("=== ").append(label).append(" ===\n");
+        if (obj == null) {
             debugInfo.append("  (null)\n");
             return;
         }
-        int count = 0;
-        for (String name : headers) {
-            debugInfo.append("  ").append(name).append(": ").append(headers.getHeaderValues(name)).append("\n");
-            count++;
-        }
-        if (count == 0) {
+        debugInfo.append("  Type: ").append(obj.getClass().getName()).append("\n");
+        Collection<String> names = getNames(obj);
+        if (names.isEmpty()) {
             debugInfo.append("  (empty)\n");
-        } else {
-            debugInfo.insert(debugInfo.indexOf("=== HEADERS ===") + 16, "Count: " + count + "\n");
-        }
-    }
-
-    private void logDebugQueryParams(QueryStringHeaderSet queryParams) {
-        if (!debugEnabled) return;
-        debugInfo.append("=== QUERY PARAMS ===\n");
-        if (queryParams == null) {
-            debugInfo.append("  (null)\n");
             return;
         }
-        int count = 0;
-        for (String name : queryParams) {
-            debugInfo.append("  ").append(name).append(": ").append(queryParams.getHeaderValues(name)).append("\n");
-            count++;
-        }
-        if (count == 0) {
-            debugInfo.append("  (empty)\n");
-        } else {
-            debugInfo.insert(debugInfo.indexOf("=== QUERY PARAMS ===") + 21, "Count: " + count + "\n");
+        debugInfo.append("  Count: ").append(names.size()).append("\n");
+        for (String name : names) {
+            debugInfo.append("  ").append(name).append(": ").append(getValues(obj, name)).append("\n");
         }
     }
 

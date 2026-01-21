@@ -1,8 +1,6 @@
 import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
-import com.vordel.mime.HeaderSet
-import com.vordel.mime.QueryStringHeaderSet
 import com.vordel.trace.Trace
 
 /**
@@ -13,8 +11,8 @@ import com.vordel.trace.Trace
  * - content.body              : Payload to validate
  * - http.request.verb         : HTTP method (GET, POST, PUT, DELETE, etc.)
  * - http.request.path         : Request path
- * - http.headers / headers    : Request/Response headers (HeaderSet)
- * - http.querystring          : Query parameters (QueryStringHeaderSet)
+ * - http.headers / headers    : Request/Response headers
+ * - http.querystring          : Query parameters
  * - http.response.status      : Response status code (if set, validates as response)
  * - openapi.validation.level  : Validation level (light, lenient, strict - default: strict)
  * - openapi.validation.debug  : Enable debug logging ("true" to enable)
@@ -79,11 +77,11 @@ def invoke(Message msg) {
         if (isResponseValidation) {
             // Response validation
             int statusCode = parseStatusCode(responseStatus)
-            HeaderSet headers = (HeaderSet) getHeaders(msg)
+            def headers = getHeaders(msg)
 
             if (debugEnabled) {
                 Trace.info("[DEBUG] Response status: " + statusCode)
-                Trace.info("[DEBUG] Headers: " + headers)
+                Trace.info("[DEBUG] Headers type: " + (headers != null ? headers.getClass().getName() : "null"))
             }
 
             result = validator.validateResponse(body, httpMethod, requestPath, statusCode, headers)
@@ -91,12 +89,12 @@ def invoke(Message msg) {
 
         } else {
             // Request validation
-            HeaderSet headers = (HeaderSet) getHeaders(msg)
-            QueryStringHeaderSet queryParams = (QueryStringHeaderSet) getQueryParams(msg)
+            def headers = getHeaders(msg)
+            def queryParams = getQueryParams(msg)
 
             if (debugEnabled) {
-                Trace.info("[DEBUG] Headers: " + headers)
-                Trace.info("[DEBUG] QueryParams: " + queryParams)
+                Trace.info("[DEBUG] Headers type: " + (headers != null ? headers.getClass().getName() : "null"))
+                Trace.info("[DEBUG] QueryParams type: " + (queryParams != null ? queryParams.getClass().getName() : "null"))
             }
 
             result = validator.validateRequest(body, httpMethod, requestPath, queryParams, headers)
@@ -179,9 +177,7 @@ def extractBody(Message msg) {
 }
 
 def getHeaders(Message msg) {
-    // Try common attribute names for headers
     def attributeNames = ["headers", "http.headers", "http.request.headers"]
-
     for (attrName in attributeNames) {
         def headers = msg.get(attrName)
         if (headers != null) {
@@ -192,9 +188,7 @@ def getHeaders(Message msg) {
 }
 
 def getQueryParams(Message msg) {
-    // Try common attribute names for query params
     def attributeNames = ["http.querystring", "http.request.querystring", "querystring"]
-
     for (attrName in attributeNames) {
         def params = msg.get(attrName)
         if (params != null) {
