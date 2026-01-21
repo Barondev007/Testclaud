@@ -346,33 +346,94 @@ public class BnppfOpenAPIValidator {
             return result;
         }
 
-        // HeaderSet or similar Iterable with getHeaderValues method
-        if (obj instanceof Iterable) {
-            Map<String, Collection<String>> result = new LinkedHashMap<>();
-            try {
-                java.lang.reflect.Method getValuesMethod = obj.getClass().getMethod("getHeaderValues", String.class);
-                for (Object name : (Iterable<?>) obj) {
-                    String headerName = name.toString();
-                    Object values = getValuesMethod.invoke(obj, headerName);
-                    if (values instanceof Collection) {
-                        ArrayList<String> valueList = new ArrayList<>();
-                        for (Object v : (Collection<?>) values) {
-                            valueList.add(v.toString());
-                        }
-                        result.put(headerName, valueList);
-                    } else if (values != null) {
-                        ArrayList<String> valueList = new ArrayList<>();
-                        valueList.add(values.toString());
-                        result.put(headerName, valueList);
+        // Try to handle HeaderSet-like objects using reflection
+        Map<String, Collection<String>> result = new LinkedHashMap<>();
+        try {
+            // Get the method to retrieve header values
+            java.lang.reflect.Method getValuesMethod = findMethod(obj, "getHeaderValues", String.class);
+            if (getValuesMethod == null) {
+                getValuesMethod = findMethod(obj, "getValues", String.class);
+            }
+            if (getValuesMethod == null) {
+                return Collections.emptyMap();
+            }
+
+            // Get header names - try multiple approaches
+            Collection<String> headerNames = getHeaderNames(obj);
+            if (headerNames == null || headerNames.isEmpty()) {
+                return Collections.emptyMap();
+            }
+
+            // Build the map
+            for (String headerName : headerNames) {
+                Object values = getValuesMethod.invoke(obj, headerName);
+                if (values instanceof Collection) {
+                    ArrayList<String> valueList = new ArrayList<>();
+                    for (Object v : (Collection<?>) values) {
+                        valueList.add(v.toString());
                     }
+                    result.put(headerName, valueList);
+                } else if (values != null) {
+                    ArrayList<String> valueList = new ArrayList<>();
+                    valueList.add(values.toString());
+                    result.put(headerName, valueList);
                 }
-                return result;
-            } catch (Exception e) {
-                // Fall through to empty map
+            }
+            return result;
+        } catch (Exception e) {
+            if (debugEnabled) {
+                debugInfo.append("  Error converting headers: ").append(e.getMessage()).append("\n");
+            }
+            return Collections.emptyMap();
+        }
+    }
+
+    private java.lang.reflect.Method findMethod(Object obj, String name, Class<?>... paramTypes) {
+        try {
+            return obj.getClass().getMethod(name, paramTypes);
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Collection<String> getHeaderNames(Object obj) {
+        // Try Iterable first (for-each loop support)
+        if (obj instanceof Iterable) {
+            ArrayList<String> names = new ArrayList<>();
+            for (Object name : (Iterable<?>) obj) {
+                names.add(name.toString());
+            }
+            if (!names.isEmpty()) {
+                return names;
             }
         }
 
-        return Collections.emptyMap();
+        // Try various method names that might return header names
+        String[] methodNames = {"getHeaderNames", "getNames", "keySet", "getHeaderSet", "names"};
+        for (String methodName : methodNames) {
+            try {
+                java.lang.reflect.Method method = obj.getClass().getMethod(methodName);
+                Object result = method.invoke(obj);
+                if (result instanceof Collection) {
+                    ArrayList<String> names = new ArrayList<>();
+                    for (Object name : (Collection<?>) result) {
+                        names.add(name.toString());
+                    }
+                    return names;
+                } else if (result instanceof Iterable) {
+                    ArrayList<String> names = new ArrayList<>();
+                    for (Object name : (Iterable<?>) result) {
+                        names.add(name.toString());
+                    }
+                    return names;
+                }
+            } catch (Exception e) {
+                // Try next method
+            }
+        }
+
+        return Collections.emptyList();
     }
 
     // ========================================================================
