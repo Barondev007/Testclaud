@@ -1,20 +1,17 @@
 package be.bnppf.openapi.validator;
 
+import com.vordel.mime.HeaderSet;
+import com.vordel.mime.QueryStringHeaderSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for BnppfOpenAPIValidator.
- * Uses standard Java types (Map) instead of Axway Vordel types for portability.
+ * Uses Axway stub types (HeaderSet, QueryStringHeaderSet).
  */
 class BnppfOpenAPIValidatorTest {
 
@@ -88,30 +85,17 @@ class BnppfOpenAPIValidatorTest {
 
     @BeforeEach
     void setUp() {
-        // Clear cache before each test to ensure clean state
         BnppfOpenAPIValidator.clearCache();
     }
 
-    /**
-     * Helper method to create headers map with Content-Type
-     */
-    private Map<String, List<String>> createHeaders(String contentType) {
-        Map<String, List<String>> headers = new HashMap<>();
-        List<String> values = new ArrayList<>();
-        values.add(contentType);
-        headers.put("Content-Type", values);
+    private HeaderSet createHeaders(String contentType) {
+        HeaderSet headers = new HeaderSet();
+        headers.setHeader("Content-Type", contentType);
         return headers;
     }
 
-    /**
-     * Helper method to create query params map
-     */
-    private Map<String, List<String>> createQueryParams(String key, String value) {
-        Map<String, List<String>> params = new HashMap<>();
-        List<String> values = new ArrayList<>();
-        values.add(value);
-        params.put(key, values);
-        return params;
+    private QueryStringHeaderSet createQueryParams(String queryString) {
+        return new QueryStringHeaderSet(queryString);
     }
 
     @Test
@@ -133,8 +117,6 @@ class BnppfOpenAPIValidatorTest {
     void testValidatorCaching() {
         BnppfOpenAPIValidator v1 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
         BnppfOpenAPIValidator v2 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
-
-        // Should be the same cached instance
         assertSame(v1, v2);
     }
 
@@ -142,8 +124,6 @@ class BnppfOpenAPIValidatorTest {
     void testDifferentLevelsNotCachedTogether() {
         BnppfOpenAPIValidator strict = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
         BnppfOpenAPIValidator lenient = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LENIENT);
-
-        // Should be different instances
         assertNotSame(strict, lenient);
     }
 
@@ -156,7 +136,6 @@ class BnppfOpenAPIValidatorTest {
         assertEquals(0, BnppfOpenAPIValidator.getCacheSize());
 
         BnppfOpenAPIValidator v2 = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
-        // After clearing cache, should get a new instance
         assertNotSame(v1, v2);
     }
 
@@ -164,13 +143,7 @@ class BnppfOpenAPIValidatorTest {
     void testValidRequestGetUsers() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        ValidationResult result = validator.validateRequest(
-                null,           // no body for GET
-                "GET",
-                "/users",
-                null,           // no query params
-                null            // no headers
-        );
+        ValidationResult result = validator.validateRequest(null, "GET", "/users", null, null);
 
         assertFalse(result.isBlocked());
         assertEquals("request", result.getValidationType());
@@ -181,15 +154,9 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\"}";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateRequest(
-                body,
-                "POST",
-                "/users",
-                null,
-                headers
-        );
+        ValidationResult result = validator.validateRequest(body, "POST", "/users", null, headers);
 
         assertFalse(result.isBlocked());
         assertEquals("request", result.getValidationType());
@@ -199,17 +166,10 @@ class BnppfOpenAPIValidatorTest {
     void testInvalidRequestMissingRequiredField() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        // Missing required 'email' field
         String body = "{\"name\": \"John Doe\"}";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateRequest(
-                body,
-                "POST",
-                "/users",
-                null,
-                headers
-        );
+        ValidationResult result = validator.validateRequest(body, "POST", "/users", null, headers);
 
         assertTrue(result.isBlocked());
         assertFalse(result.isValid());
@@ -220,19 +180,11 @@ class BnppfOpenAPIValidatorTest {
     void testInvalidRequestAdditionalPropertiesStrict() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        // Body with additional property 'age' not in schema
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"age\": 30}";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateRequest(
-                body,
-                "POST",
-                "/users",
-                null,
-                headers
-        );
+        ValidationResult result = validator.validateRequest(body, "POST", "/users", null, headers);
 
-        // STRICT mode should reject additional properties
         assertTrue(result.isBlocked());
     }
 
@@ -240,19 +192,11 @@ class BnppfOpenAPIValidatorTest {
     void testAdditionalPropertiesAllowedInLenientMode() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LENIENT);
 
-        // Body with additional property 'age' not in schema
         String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"age\": 30}";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateRequest(
-                body,
-                "POST",
-                "/users",
-                null,
-                headers
-        );
+        ValidationResult result = validator.validateRequest(body, "POST", "/users", null, headers);
 
-        // LENIENT mode should allow additional properties
         assertFalse(result.isBlocked());
     }
 
@@ -260,21 +204,12 @@ class BnppfOpenAPIValidatorTest {
     void testLightModeDoesNotBlock() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.LIGHT);
 
-        // Missing required 'email' field - would normally block
         String body = "{\"name\": \"John Doe\"}";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateRequest(
-                body,
-                "POST",
-                "/users",
-                null,
-                headers
-        );
+        ValidationResult result = validator.validateRequest(body, "POST", "/users", null, headers);
 
-        // LIGHT mode should NOT block even with errors
         assertFalse(result.isBlocked());
-        // But validation should still report issues
         assertTrue(result.getAllMessages().size() > 0);
     }
 
@@ -283,15 +218,9 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "[{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}]";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateResponse(
-                body,
-                "GET",
-                "/users",
-                200,
-                headers
-        );
+        ValidationResult result = validator.validateResponse(body, "GET", "/users", 200, headers);
 
         assertFalse(result.isBlocked());
         assertEquals("response", result.getValidationType());
@@ -302,50 +231,11 @@ class BnppfOpenAPIValidatorTest {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
         String body = "{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}";
-        Map<String, List<String>> headers = createHeaders("application/json");
+        HeaderSet headers = createHeaders("application/json");
 
-        ValidationResult result = validator.validateResponse(
-                body,
-                "GET",
-                "/users/1",
-                500,    // 500 is not defined in the spec
-                headers
-        );
+        ValidationResult result = validator.validateResponse(body, "GET", "/users/1", 500, headers);
 
-        // Undefined response code should be flagged
         assertTrue(result.isBlocked() || result.getAllMessages().size() > 0);
-    }
-
-    @Test
-    void testIsValidRequestSimple() {
-        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
-
-        boolean valid = validator.isValidRequest(
-                null,
-                "GET",
-                "/users",
-                null,
-                null
-        );
-
-        assertTrue(valid);
-    }
-
-    @Test
-    void testIsValidResponseSimple() {
-        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
-
-        Map<String, List<String>> headers = createHeaders("application/json");
-
-        boolean valid = validator.isValidResponse(
-                "[{\"id\": 1, \"name\": \"John\", \"email\": \"john@example.com\"}]",
-                "GET",
-                "/users",
-                200,
-                headers
-        );
-
-        assertTrue(valid);
     }
 
     @Test
@@ -355,50 +245,16 @@ class BnppfOpenAPIValidatorTest {
 
         assertTrue(validator.isDebugEnabled());
 
-        ValidationResult result = validator.validateRequest(
-                null,
-                "GET",
-                "/users",
-                null,
-                null
-        );
+        ValidationResult result = validator.validateRequest(null, "GET", "/users", null, null);
 
-        // Debug info should be populated when debug is enabled
         assertNotNull(result.getDebugInfo());
-    }
-
-    @Test
-    void testSetPayloadLogMaxLength() {
-        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
-
-        validator.setPayloadLogMaxLength(100);
-        assertEquals(100, validator.getPayloadLogMaxLength());
-
-        validator.setPayloadLogMaxLength(50);
-        assertEquals(50, validator.getPayloadLogMaxLength());
-    }
-
-    @Test
-    void testSetDecodeQueryParams() {
-        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC);
-
-        assertTrue(validator.isDecodeQueryParams()); // default is true
-
-        validator.setDecodeQueryParams(false);
-        assertFalse(validator.isDecodeQueryParams());
     }
 
     @Test
     void testPathNotFoundValidation() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        ValidationResult result = validator.validateRequest(
-                null,
-                "GET",
-                "/nonexistent/path",
-                null,
-                null
-        );
+        ValidationResult result = validator.validateRequest(null, "GET", "/nonexistent/path", null, null);
 
         assertTrue(result.isBlocked());
         assertTrue(result.getErrorsAsString().contains("No API path found") ||
@@ -409,15 +265,9 @@ class BnppfOpenAPIValidatorTest {
     void testGetUsersWithQueryParams() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        Map<String, List<String>> queryParams = createQueryParams("limit", "10");
+        QueryStringHeaderSet queryParams = createQueryParams("limit=10");
 
-        ValidationResult result = validator.validateRequest(
-                null,
-                "GET",
-                "/users",
-                queryParams,
-                null
-        );
+        ValidationResult result = validator.validateRequest(null, "GET", "/users", queryParams, null);
 
         assertFalse(result.isBlocked());
     }
@@ -426,13 +276,34 @@ class BnppfOpenAPIValidatorTest {
     void testGetUserById() {
         BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
 
-        ValidationResult result = validator.validateRequest(
-                null,
-                "GET",
-                "/users/123",
-                null,
-                null
-        );
+        ValidationResult result = validator.validateRequest(null, "GET", "/users/123", null, null);
+
+        assertFalse(result.isBlocked());
+    }
+
+    @Test
+    void testHeadersWithMultipleValues() {
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+
+        HeaderSet headers = new HeaderSet();
+        headers.setHeader("Content-Type", "application/json");
+        headers.addHeader("Accept", "application/json");
+        headers.addHeader("Accept", "text/plain");
+
+        String body = "{\"name\": \"John Doe\", \"email\": \"john@example.com\"}";
+
+        ValidationResult result = validator.validateRequest(body, "POST", "/users", null, headers);
+
+        assertFalse(result.isBlocked());
+    }
+
+    @Test
+    void testQueryParamsWithMultipleValues() {
+        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(SAMPLE_SPEC, ValidationLevel.STRICT);
+
+        QueryStringHeaderSet queryParams = createQueryParams("limit=10&offset=0");
+
+        ValidationResult result = validator.validateRequest(null, "GET", "/users", queryParams, null);
 
         assertFalse(result.isBlocked());
     }

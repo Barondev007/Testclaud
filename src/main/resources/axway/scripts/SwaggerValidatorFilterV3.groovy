@@ -1,20 +1,19 @@
 import be.bnppf.openapi.validator.BnppfOpenAPIValidator
 import be.bnppf.openapi.validator.ValidationLevel
 import be.bnppf.openapi.validator.ValidationResult
+import com.vordel.mime.HeaderSet
+import com.vordel.mime.QueryStringHeaderSet
 import com.vordel.trace.Trace
 
 /**
  * Axway API Gateway - OpenAPI Request/Response Validator V3
  *
- * This script uses the BnppfOpenAPIValidator Java class for validation.
- * The Java class must be deployed as a JAR in the Axway ext/lib directory.
- *
  * Input Attributes:
- * - specfile                  : (Required) OpenAPI spec content (YAML or JSON) or URL
- * - content.body              : Payload to validate (request or response body)
+ * - specfile                  : (Required) OpenAPI spec content (YAML or JSON)
+ * - content.body              : Payload to validate
  * - http.request.verb         : HTTP method (GET, POST, PUT, DELETE, etc.)
- * - http.request.path         : Request path (e.g., /users/123)
- * - http.headers              : Request/Response headers (HeaderSet)
+ * - http.request.path         : Request path
+ * - http.headers / headers    : Request/Response headers (HeaderSet)
  * - http.querystring          : Query parameters (QueryStringHeaderSet)
  * - http.response.status      : Response status code (if set, validates as response)
  * - openapi.validation.level  : Validation level (light, lenient, strict - default: strict)
@@ -22,7 +21,7 @@ import com.vordel.trace.Trace
  *
  * Output Attributes:
  * - openapi.validation.failed       : "true" or "false"
- * - openapi.validation.blocked      : "true" or "false" (based on level)
+ * - openapi.validation.blocked      : "true" or "false"
  * - openapi.validation.error        : Error message(s)
  * - openapi.validation.errors.count : Number of errors
  * - openapi.validation.errors.all   : All error messages
@@ -41,7 +40,7 @@ def invoke(Message msg) {
         boolean debugEnabled = (debugAttr != null && debugAttr.toString().equalsIgnoreCase("true"))
 
         if (debugEnabled) {
-            Trace.info("========== OpenAPI Validation V3 - DEBUG MODE ==========")
+            Trace.info("========== OpenAPI Validation V3 ==========")
             Trace.info("[DEBUG] Validation level: ${level}")
         }
 
@@ -80,36 +79,27 @@ def invoke(Message msg) {
         if (isResponseValidation) {
             // Response validation
             int statusCode = parseStatusCode(responseStatus)
-            def headers = getHeaders(msg)
+            HeaderSet headers = getHeaders(msg)
 
             if (debugEnabled) {
                 Trace.info("[DEBUG] Response status: ${statusCode}")
+                logHeaders(headers)
             }
 
-            result = validator.validateResponseAxway(body, httpMethod, requestPath, statusCode, headers)
+            result = validator.validateResponse(body, httpMethod, requestPath, statusCode, headers)
             msg.put("openapi.validation.type", "response")
 
         } else {
             // Request validation
-            def headers = getHeaders(msg)
-            def queryParams = getQueryParams(msg)
+            HeaderSet headers = getHeaders(msg)
+            QueryStringHeaderSet queryParams = getQueryParams(msg)
 
             if (debugEnabled) {
-                Trace.info("[DEBUG] Headers object: ${headers != null ? headers.getClass().getName() : 'NULL'}")
-                Trace.info("[DEBUG] QueryParams object: ${queryParams != null ? queryParams.getClass().getName() : 'NULL'}")
-
-                // Try to log header contents
-                if (headers != null) {
-                    try {
-                        def headerSet = headers.getHeaderSet()
-                        Trace.info("[DEBUG] Header names: ${headerSet}")
-                    } catch (Exception e) {
-                        Trace.info("[DEBUG] Could not get header names: ${e.getMessage()}")
-                    }
-                }
+                logHeaders(headers)
+                logQueryParams(queryParams)
             }
 
-            result = validator.validateRequestAxway(body, httpMethod, requestPath, queryParams, headers)
+            result = validator.validateRequest(body, httpMethod, requestPath, queryParams, headers)
             msg.put("openapi.validation.type", "request")
         }
 
@@ -129,7 +119,6 @@ def invoke(Message msg) {
             Trace.info("[DEBUG] Debug info:\n" + result.getDebugInfo())
         }
 
-        // Return based on blocked status (allows flow to continue for LIGHT mode)
         return !result.isBlocked()
 
     } catch (Exception e) {
@@ -153,25 +142,19 @@ def extractBody(Message msg) {
 
         def bodyClassName = body.getClass().getName()
 
-        // JSONBody
         if (bodyClassName.contains("JSONBody")) {
             def json = body.getJSON()
-            if (json != null) {
-                return json.toString()
-            }
+            return json?.toString()
         }
 
-        // XMLBody
         if (bodyClassName.contains("XMLBody")) {
             return body.toString()
         }
 
-        // Try getContentAsString
         if (body.metaClass.respondsTo(body, "getContentAsString")) {
             return body.getContentAsString()
         }
 
-        // Try getContent
         if (body.metaClass.respondsTo(body, "getContent")) {
             def content = body.getContent()
             if (content instanceof byte[]) {
@@ -180,7 +163,6 @@ def extractBody(Message msg) {
             return content?.toString()
         }
 
-        // Try InputStream
         if (body.metaClass.respondsTo(body, "getInputStream")) {
             def is = body.getInputStream(null)
             if (is != null) {
@@ -196,71 +178,29 @@ def extractBody(Message msg) {
     }
 }
 
-def getHeaders(Message msg) {
-    // Check debug mode
-    def debugAttr = msg.get("openapi.validation.debug")
-    boolean debugEnabled = (debugAttr != null && debugAttr.toString().equalsIgnoreCase("true"))
+HeaderSet getHeaders(Message msg) {
+    // Try common attribute names for headers
+    def attributeNames = ["headers", "http.headers", "http.request.headers"]
 
-    // First try the most common attribute name used in other scripts
-    def headers = msg.get("headers")
-    if (headers != null) {
-        if (debugEnabled) {
-            Trace.info("[DEBUG] Found headers via msg.get('headers'): ${headers.getClass().getName()}")
-        }
-        return headers
-    }
-
-    // Try other possible attribute names
-    def headerAttributeNames = [
-        "http.headers",
-        "http.header",
-        "http.request.headers",
-        "content.headers",
-        "leg0.http.headers",
-        "leg1.http.headers",
-        "http.response.headers",
-        "request.headers"
-    ]
-
-    if (debugEnabled) {
-        Trace.info("[DEBUG] 'headers' attribute was null, trying other names...")
-    }
-
-    for (attrName in headerAttributeNames) {
-        def h = msg.get(attrName)
-        if (h != null) {
-            if (debugEnabled) {
-                Trace.info("[DEBUG] Found headers in '${attrName}': ${h.getClass().getName()}")
-            }
-            return h
+    for (attrName in attributeNames) {
+        def headers = msg.get(attrName)
+        if (headers != null && headers instanceof HeaderSet) {
+            return headers
         }
     }
-
-    if (debugEnabled) {
-        Trace.info("[DEBUG] No headers found in any attribute")
-    }
-
     return null
 }
 
-def getQueryParams(Message msg) {
-    // Try multiple possible attribute names
-    def queryParamAttributeNames = [
-        "http.querystring",
-        "http.request.querystring",
-        "querystring",
-        "param.query"
-    ]
+QueryStringHeaderSet getQueryParams(Message msg) {
+    // Try common attribute names for query params
+    def attributeNames = ["http.querystring", "http.request.querystring", "querystring"]
 
-    for (attrName in queryParamAttributeNames) {
+    for (attrName in attributeNames) {
         def params = msg.get(attrName)
-        // Check by class name to avoid direct dependency on QueryStringHeaderSet
-        if (params != null && params.getClass().getName().contains("QueryStringHeaderSet")) {
+        if (params != null && params instanceof QueryStringHeaderSet) {
             return params
         }
     }
-
-    // Return null if no query params found
     return null
 }
 
@@ -272,6 +212,30 @@ def parseStatusCode(Object status) {
     } catch (Exception e) {
         Trace.warn("Could not parse status code '${status}', defaulting to 200")
         return 200
+    }
+}
+
+void logHeaders(HeaderSet headers) {
+    if (headers == null) {
+        Trace.info("[DEBUG] Headers: null")
+        return
+    }
+    def names = headers.getHeaderSet()
+    Trace.info("[DEBUG] Headers count: ${names?.size() ?: 0}")
+    names?.each { name ->
+        Trace.info("[DEBUG]   ${name}: ${headers.getHeaderValues(name)}")
+    }
+}
+
+void logQueryParams(QueryStringHeaderSet params) {
+    if (params == null) {
+        Trace.info("[DEBUG] QueryParams: null")
+        return
+    }
+    def names = params.getHeaderSet()
+    Trace.info("[DEBUG] QueryParams count: ${names?.size() ?: 0}")
+    names?.each { name ->
+        Trace.info("[DEBUG]   ${name}: ${params.getHeaderValues(name)}")
     }
 }
 
