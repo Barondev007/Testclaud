@@ -1,10 +1,10 @@
 package com.vordel.mime;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Stub class for Axway HeaderSet.
@@ -24,9 +24,9 @@ public class HeaderSet implements Iterable<String> {
     }
 
     /**
-     * Returns the set of header names.
+     * Returns the collection of header names.
      */
-    public Set<String> getHeaderNames() {
+    public Collection<String> getHeaderNames() {
         return headers.keySet();
     }
 
