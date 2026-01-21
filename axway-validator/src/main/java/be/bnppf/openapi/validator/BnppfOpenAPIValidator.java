@@ -486,8 +486,30 @@ public class BnppfOpenAPIValidator {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public Map<String, Collection<String>> getHeaders() {
-                return null; // Not used for validation
+                if (headers == null) return Collections.emptyMap();
+                try {
+                    Map<String, Collection<String>> result = new LinkedHashMap<>();
+                    // Get all header names using reflection
+                    java.lang.reflect.Method getHeaderSetMethod = headers.getClass().getMethod("getHeaderSet");
+                    Collection<String> headerNames = (Collection<String>) getHeaderSetMethod.invoke(headers);
+                    if (headerNames == null || headerNames.isEmpty()) {
+                        return Collections.emptyMap();
+                    }
+                    // Get values for each header
+                    java.lang.reflect.Method getValuesMethod = headers.getClass().getMethod("getHeaderValues", String.class);
+                    for (String headerName : headerNames) {
+                        ArrayList<String> values = (ArrayList<String>) getValuesMethod.invoke(headers, headerName);
+                        if (values != null && !values.isEmpty()) {
+                            result.put(headerName, values);
+                        }
+                    }
+                    return result;
+                } catch (Exception e) {
+                    Utils.traceMessage("Error extracting headers: " + e.getMessage(), TraceLevel.ERROR);
+                    return Collections.emptyMap();
+                }
             }
 
             @Override
