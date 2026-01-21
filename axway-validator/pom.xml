@@ -107,6 +107,11 @@
                                 </filter>
                             </filters>
                             <relocations>
+                                <!-- Relocate Atlassian OAI Validator to avoid conflicts -->
+                                <relocation>
+                                    <pattern>com.atlassian.oai</pattern>
+                                    <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
+                                </relocation>
                                 <!-- Relocate SnakeYAML to avoid conflicts with Axway's version -->
                                 <relocation>
                                     <pattern>org.yaml.snakeyaml</pattern>
@@ -136,6 +141,31 @@
                                 <relocation>
                                     <pattern>com.google</pattern>
                                     <shadedPattern>shaded.com.google</shadedPattern>
+                                </relocation>
+                                <!-- Relocate JSON Schema Validator (networknt) -->
+                                <relocation>
+                                    <pattern>com.networknt</pattern>
+                                    <shadedPattern>shaded.com.networknt</shadedPattern>
+                                </relocation>
+                                <!-- Relocate GitHub FGE JSON Schema -->
+                                <relocation>
+                                    <pattern>com.github.fge</pattern>
+                                    <shadedPattern>shaded.com.github.fge</shadedPattern>
+                                </relocation>
+                                <!-- Relocate Ethlo time library -->
+                                <relocation>
+                                    <pattern>com.ethlo</pattern>
+                                    <shadedPattern>shaded.com.ethlo</shadedPattern>
+                                </relocation>
+                                <!-- Relocate javax.validation -->
+                                <relocation>
+                                    <pattern>javax.validation</pattern>
+                                    <shadedPattern>shaded.javax.validation</shadedPattern>
+                                </relocation>
+                                <!-- Relocate Joda Time -->
+                                <relocation>
+                                    <pattern>org.joda</pattern>
+                                    <shadedPattern>shaded.org.joda</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
