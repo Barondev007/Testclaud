@@ -215,8 +215,8 @@ public class BnppfOpenAPIValidator {
             @Override
             public Collection<String> getQueryParameterValues(String name) {
                 if (queryParams == null) return Collections.emptyList();
-                ArrayList<String> values = queryParams.getHeaderValues(name);
-                if (values == null) return Collections.emptyList();
+                ArrayList<String> values = getValuesFromQueryParams(queryParams, name);
+                if (values == null || values.isEmpty()) return Collections.emptyList();
                 ArrayList<String> decoded = new ArrayList<>();
                 for (String value : values) {
                     try {
@@ -299,6 +299,27 @@ public class BnppfOpenAPIValidator {
         };
 
         return validator.validateResponse(path, Request.Method.valueOf(verb.toUpperCase()), response);
+    }
+
+    // ========================================================================
+    // HELPER METHODS FOR AXWAY TYPES
+    // ========================================================================
+
+    @SuppressWarnings("unchecked")
+    private static ArrayList<String> getValuesFromQueryParams(QueryStringHeaderSet queryParams, String name) {
+        if (queryParams == null) return null;
+        try {
+            // Try getValues first (common for query params)
+            try {
+                java.lang.reflect.Method method = queryParams.getClass().getMethod("getValues", String.class);
+                return (ArrayList<String>) method.invoke(queryParams, name);
+            } catch (NoSuchMethodException e) {
+                // Fall back to getHeaderValues
+                return queryParams.getHeaderValues(name);
+            }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ========================================================================
