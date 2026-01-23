@@ -7,6 +7,7 @@ import com.apigee.flow.message.MessageContext;
 
 import com.atlassian.oai.validator.OpenApiInteractionValidator;
 import com.atlassian.oai.validator.model.SimpleRequest;
+import com.atlassian.oai.validator.model.SimpleResponse;
 import com.atlassian.oai.validator.report.LevelResolver;
 import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
@@ -18,17 +19,21 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Apigee Java Callout for OpenAPI Request Validation
+ * Apigee Java Callout for OpenAPI Request/Response Validation
  *
  * Features:
  * - Spec content passed directly as property (specfile)
  * - Thread-safe validator caching (one validator per unique spec + validation level)
  * - Configurable validation levels
+ * - Support for both request and response validation
  *
  * Required Properties:
  * - specfile : The OpenAPI spec content as a String (YAML or JSON)
  *
  * Optional Properties:
+ * - validation-type : Type of validation (default: "request")
+ *     - "request"  : Validate incoming request
+ *     - "response" : Validate outgoing response
  * - validation-level : Validation level (default: "strict")
  *     - "light"    : All errors stored in variable, flow NOT blocked
  *     - "lenient"  : Additional properties ignored, other errors block flow
@@ -39,8 +44,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * - openapi.validation.error : Error message(s) if validation failed
  * - openapi.validation.errors.count : Number of validation errors
  * - openapi.validation.errors.all : All error messages (for light mode)
+ * - openapi.validation.type : "request" or "response"
  */
 public class OpenApiValidatorCallout implements Execution {
+
+    // ========================================================================
+    // VALIDATION TYPES
+    // ========================================================================
+
+    private static final String TYPE_REQUEST = "request";
+    private static final String TYPE_RESPONSE = "response";
 
     // ========================================================================
     // VALIDATION LEVELS
@@ -114,6 +127,21 @@ public class OpenApiValidatorCallout implements Execution {
 
             messageContext.setVariable("openapi.debug.validation.level", validationLevel);
 
+            // Get validation type (default: request)
+            String validationType = resolveProperty("validation-type", messageContext);
+            if (validationType == null || validationType.isEmpty()) {
+                validationType = TYPE_REQUEST;
+            }
+            validationType = validationType.toLowerCase().trim();
+
+            // Validate type parameter
+            if (!TYPE_REQUEST.equals(validationType) && !TYPE_RESPONSE.equals(validationType)) {
+                validationType = TYPE_REQUEST;
+            }
+
+            messageContext.setVariable("openapi.validation.type", validationType);
+            messageContext.setVariable("openapi.debug.validation.type", validationType);
+
             // Get cached validator
             OpenApiInteractionValidator validator;
             try {
@@ -123,32 +151,27 @@ public class OpenApiValidatorCallout implements Execution {
                 return ExecutionResult.ABORT;
             }
 
-            // Extract request details
+            // Common: HTTP method and path (needed for both request and response)
             String httpMethod = messageContext.getVariable("request.verb");
             String requestPath = messageContext.getVariable("proxy.pathsuffix");
-            String contentType = messageContext.getVariable("request.header.content-type");
-            String requestBody = messageContext.getVariable("request.content");
 
             if (httpMethod == null) httpMethod = "GET";
             if (requestPath == null || requestPath.isEmpty()) requestPath = "/";
-            if (contentType == null) contentType = "application/json";
 
-            // Build request
-            SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(httpMethod, requestPath);
+            ValidationReport report;
 
-            if (requestBody != null && !requestBody.isEmpty()) {
-                requestBuilder.withBody(requestBody);
-                requestBuilder.withContentType(contentType);
+            if (TYPE_RESPONSE.equals(validationType)) {
+                // ============================================================
+                // RESPONSE VALIDATION
+                // ============================================================
+                report = validateResponse(messageContext, validator, httpMethod, requestPath);
+
+            } else {
+                // ============================================================
+                // REQUEST VALIDATION
+                // ============================================================
+                report = validateRequest(messageContext, validator, httpMethod, requestPath);
             }
-
-            // Add query parameters
-            String queryString = messageContext.getVariable("request.querystring");
-            if (queryString != null && !queryString.isEmpty()) {
-                addQueryParams(requestBuilder, queryString);
-            }
-
-            // Validate
-            ValidationReport report = validator.validateRequest(requestBuilder.build());
 
             // Collect all messages
             List<String> allMessages = collectAllMessages(report);
@@ -261,6 +284,98 @@ public class OpenApiValidatorCallout implements Execution {
             .withLevel("validation.request.contentType.notAllowed", ValidationReport.Level.INFO)
             .withLevel("validation.request.body.missing", ValidationReport.Level.INFO)
             .build();
+    }
+
+    // ========================================================================
+    // VALIDATION METHODS
+    // ========================================================================
+
+    private ValidationReport validateRequest(MessageContext messageContext,
+            OpenApiInteractionValidator validator, String httpMethod, String requestPath) {
+
+        String contentType = messageContext.getVariable("request.header.content-type");
+        String requestBody = messageContext.getVariable("request.content");
+
+        if (contentType == null) contentType = "application/json";
+
+        // Build request
+        SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(httpMethod, requestPath);
+
+        if (requestBody != null && !requestBody.isEmpty()) {
+            requestBuilder.withBody(requestBody);
+            requestBuilder.withContentType(contentType);
+        }
+
+        // Add query parameters
+        String queryString = messageContext.getVariable("request.querystring");
+        if (queryString != null && !queryString.isEmpty()) {
+            addQueryParams(requestBuilder, queryString);
+        }
+
+        // Add request headers
+        addRequestHeaders(requestBuilder, messageContext);
+
+        return validator.validateRequest(requestBuilder.build());
+    }
+
+    private ValidationReport validateResponse(MessageContext messageContext,
+            OpenApiInteractionValidator validator, String httpMethod, String requestPath) {
+
+        // Get response status code
+        String statusStr = messageContext.getVariable("response.status.code");
+        int statusCode = 200;
+        if (statusStr != null && !statusStr.isEmpty()) {
+            try {
+                statusCode = Integer.parseInt(statusStr.trim());
+            } catch (NumberFormatException e) {
+                statusCode = 200;
+            }
+        }
+
+        // Get response body and content type
+        String responseBody = messageContext.getVariable("response.content");
+        String contentType = messageContext.getVariable("response.header.content-type");
+
+        if (contentType == null) contentType = "application/json";
+
+        // Build response
+        SimpleResponse.Builder responseBuilder = new SimpleResponse.Builder(statusCode);
+
+        if (responseBody != null && !responseBody.isEmpty()) {
+            responseBuilder.withBody(responseBody);
+            responseBuilder.withContentType(contentType);
+        }
+
+        // Add response headers
+        addResponseHeaders(responseBuilder, messageContext);
+
+        // For response validation, we also need the request to match the operation
+        SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(httpMethod, requestPath);
+
+        return validator.validateResponse(requestPath, SimpleRequest.Method.valueOf(httpMethod.toUpperCase()),
+                responseBuilder.build());
+    }
+
+    private void addRequestHeaders(SimpleRequest.Builder builder, MessageContext messageContext) {
+        // Add common headers that might be relevant for validation
+        String[] headerNames = {"accept", "authorization", "x-api-key", "x-request-id"};
+        for (String headerName : headerNames) {
+            String value = messageContext.getVariable("request.header." + headerName);
+            if (value != null && !value.isEmpty()) {
+                builder.withHeader(headerName, value);
+            }
+        }
+    }
+
+    private void addResponseHeaders(SimpleResponse.Builder builder, MessageContext messageContext) {
+        // Add common response headers that might be relevant for validation
+        String[] headerNames = {"content-type", "x-request-id", "x-correlation-id"};
+        for (String headerName : headerNames) {
+            String value = messageContext.getVariable("response.header." + headerName);
+            if (value != null && !value.isEmpty()) {
+                builder.withHeader(headerName, value);
+            }
+        }
     }
 
     // ========================================================================
