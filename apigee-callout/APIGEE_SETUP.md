@@ -71,9 +71,36 @@ apiproxy/
 
 ## Step 3: Store Your OpenAPI Spec
 
-### Option A: Using Resource File (Recommended for Large Specs)
+### Option A: Using Resource File Bundled in JAR (Recommended for Large Specs)
 
-Upload your OpenAPI spec as a resource file in the proxy bundle. This avoids KVM size limits (~512KB).
+Bundle your OpenAPI spec **inside the JAR** at build time. This avoids KVM size limits (~512KB).
+
+> **Important:** The spec file must be inside the JAR, not in `apiproxy/resources/`. Apigee Java Callouts cannot access proxy resources directly.
+
+**Step 1: Add spec to JAR source**
+
+Place your spec file in the callout project's resources folder:
+```
+apigee-callout/
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── com/example/apigee/OpenApiValidatorCallout.java
+│       └── resources/
+│           └── openapi/
+│               └── petstore.yaml    ← Your OpenAPI spec file HERE
+└── pom.xml
+```
+
+**Step 2: Rebuild the JAR**
+```bash
+cd apigee-callout
+mvn clean package
+```
+
+The spec will be bundled inside `openapi-validator-apigee-callout-1.0.0.jar`.
+
+**Step 3: Deploy and configure**
 
 **Proxy bundle structure:**
 ```
@@ -83,18 +110,9 @@ apiproxy/
 ├── policies/
 │   └── JavaCallout-ValidateRequest.xml
 └── resources/
-    ├── java/
-    │   └── openapi-validator-apigee-callout-1.0.0.jar
-    └── openapi/
-        └── petstore.yaml    ← Your OpenAPI spec file
+    └── java/
+        └── openapi-validator-apigee-callout-1.0.0.jar  ← Contains the spec
 ```
-
-**Using Apigee UI:**
-1. Go to **Develop** tab
-2. Click **+** next to **Resources**
-3. Select **Other** (or appropriate type)
-4. Upload your spec file (e.g., `petstore.yaml`)
-5. Set the resource path (e.g., `openapi/petstore.yaml`)
 
 **Java Callout configuration:**
 ```xml
@@ -108,6 +126,8 @@ apiproxy/
     <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
 </JavaCallout>
 ```
+
+> **Tip:** To update the spec, you need to rebuild the JAR and redeploy.
 
 ### Option B: Using KVM (Key Value Map)
 

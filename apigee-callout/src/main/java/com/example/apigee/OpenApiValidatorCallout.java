@@ -109,9 +109,18 @@ public class OpenApiValidatorCallout implements Execution {
                 specContent != null ? specContent.substring(0, Math.min(200, specContent.length())) : "NULL");
             messageContext.setVariable("openapi.debug.specfile.length",
                 specContent != null ? String.valueOf(specContent.length()) : "0");
+            if (lastResourceError != null) {
+                messageContext.setVariable("openapi.debug.resource.error", lastResourceError);
+            }
 
             if (specContent == null || specContent.isEmpty()) {
-                setError(messageContext, "OpenAPI spec not provided. Set 'specfile' or 'spec-resource' property.");
+                String errorMsg = "OpenAPI spec not provided. ";
+                if (lastResourceError != null) {
+                    errorMsg += lastResourceError;
+                } else {
+                    errorMsg += "Set 'specfile' or 'spec-resource' property.";
+                }
+                setError(messageContext, errorMsg);
                 return ExecutionResult.ABORT;
             }
 
@@ -400,34 +409,59 @@ public class OpenApiValidatorCallout implements Execution {
     // ========================================================================
 
     /**
-     * Load spec content from a resource file in the proxy bundle.
-     * Resource files should be placed in: apiproxy/resources/{resourcePath}
+     * Load spec content from a resource file.
+     *
+     * The file must be bundled INSIDE the JAR at build time.
+     * Place your spec file in: src/main/resources/openapi/petstore.yaml
+     * Then reference it as: spec-resource=openapi/petstore.yaml
      *
      * @param resourcePath Path to the resource file (e.g., "openapi/petstore.yaml")
      * @return The file content as a String, or null if not found
      */
     private String loadResourceFile(String resourcePath) {
+        StringBuilder errors = new StringBuilder();
+
         try {
-            // Try multiple classloader approaches for Apigee compatibility
             InputStream inputStream = null;
 
             // Try 1: Thread context classloader
             ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
             if (contextLoader != null) {
                 inputStream = contextLoader.getResourceAsStream(resourcePath);
+                if (inputStream == null) {
+                    errors.append("ContextClassLoader: not found; ");
+                }
+            } else {
+                errors.append("ContextClassLoader: null; ");
             }
 
             // Try 2: Class classloader
             if (inputStream == null) {
                 inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+                if (inputStream == null) {
+                    errors.append("ClassLoader: not found; ");
+                }
             }
 
-            // Try 3: Direct class resource
+            // Try 3: Direct class resource (with leading slash)
             if (inputStream == null) {
                 inputStream = getClass().getResourceAsStream("/" + resourcePath);
+                if (inputStream == null) {
+                    errors.append("Class.getResourceAsStream(/): not found; ");
+                }
+            }
+
+            // Try 4: Direct class resource (without leading slash)
+            if (inputStream == null) {
+                inputStream = getClass().getResourceAsStream(resourcePath);
+                if (inputStream == null) {
+                    errors.append("Class.getResourceAsStream(): not found; ");
+                }
             }
 
             if (inputStream == null) {
+                lastResourceError = "Resource '" + resourcePath + "' not found. Tried: " + errors.toString() +
+                    "Make sure the file is inside the JAR (place in src/main/resources/).";
                 return null;
             }
 
@@ -439,12 +473,17 @@ public class OpenApiValidatorCallout implements Execution {
                     content.append(line).append("\n");
                 }
             }
+            lastResourceError = null;
             return content.toString();
 
         } catch (Exception e) {
+            lastResourceError = "Error loading resource '" + resourcePath + "': " + e.getMessage();
             return null;
         }
     }
+
+    // Store last resource loading error for debugging
+    private String lastResourceError = null;
 
     private String resolveProperty(String propertyName, MessageContext messageContext) {
         String value = properties.get(propertyName);
