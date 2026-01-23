@@ -417,10 +417,27 @@ Create `JavaCallout-ValidateResponse.xml`:
 | Level | Behavior |
 |-------|----------|
 | `strict` | All validation errors block the flow (strictest) |
-| `lenient` | Ignores additional properties AND oneOf/anyOf/allOf errors (matches Apigee OASValidation behavior) |
+| `moderate` | Ignores additional properties AND oneOf errors only. anyOf/allOf still validated. |
+| `lenient` | Ignores additional properties AND all oneOf/anyOf/allOf errors |
 | `light` | Errors are stored in variables but flow is NOT blocked (most permissive) |
 
-> **Note:** Use `lenient` mode if you're getting "instance failed to match exactly one schema" errors that don't occur with Apigee's built-in OASValidation policy. The `lenient` mode ignores `oneOf`, `anyOf`, `allOf`, and discriminator validation errors.
+> **Choosing a validation level:**
+> - Use `strict` for full OpenAPI compliance
+> - Use `moderate` if you get "instance failed to match exactly one schema" errors but still want anyOf/allOf validation
+> - Use `lenient` to match Apigee's built-in OASValidation policy behavior (ignores all composite schema errors)
+> - Use `light` for non-blocking validation (errors logged but flow continues)
+
+**What each level validates:**
+
+| Validation | strict | moderate | lenient | light |
+|------------|--------|----------|---------|-------|
+| Type, format, enum | Yes | Yes | Yes | Logged |
+| Required fields | Yes | Yes | Yes | Logged |
+| Additional properties | Yes | No | No | Logged |
+| oneOf (exactly one) | Yes | No | No | Logged |
+| anyOf (at least one) | Yes | Yes | No | Logged |
+| allOf (match all) | Yes | Yes | No | Logged |
+| Discriminator | Yes | No | No | Logged |
 
 ### Using KVM for Spec Content
 

@@ -42,7 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *     - "response" : Validate outgoing response
  * - validation-level : Validation level (default: "strict")
  *     - "light"    : All errors stored in variable, flow NOT blocked
- *     - "lenient"  : Additional properties ignored, other errors block flow
+ *     - "lenient"  : Additional properties AND oneOf/anyOf/allOf ignored
+ *     - "moderate" : Additional properties AND oneOf ignored, anyOf/allOf still validated
  *     - "strict"   : All errors block the flow
  *
  * Output Variables:
@@ -67,6 +68,7 @@ public class OpenApiValidatorCallout implements Execution {
 
     private static final String LEVEL_LIGHT = "light";
     private static final String LEVEL_LENIENT = "lenient";
+    private static final String LEVEL_MODERATE = "moderate";
     private static final String LEVEL_STRICT = "strict";
 
     // ========================================================================
@@ -158,6 +160,7 @@ public class OpenApiValidatorCallout implements Execution {
             // Validate level parameter
             if (!LEVEL_LIGHT.equals(validationLevel) &&
                 !LEVEL_LENIENT.equals(validationLevel) &&
+                !LEVEL_MODERATE.equals(validationLevel) &&
                 !LEVEL_STRICT.equals(validationLevel)) {
                 validationLevel = LEVEL_STRICT;
             }
@@ -289,6 +292,12 @@ public class OpenApiValidatorCallout implements Execution {
                 builder.withLevelResolver(createLenientLevelResolver());
                 break;
 
+            case LEVEL_MODERATE:
+                // Moderate mode: Ignore additional properties AND oneOf errors only
+                // anyOf/allOf are still validated, individual schemas inside oneOf are validated
+                builder.withLevelResolver(createModerateLevelResolver());
+                break;
+
             case LEVEL_STRICT:
             default:
                 // Strict mode: All validations enforced
@@ -351,6 +360,27 @@ public class OpenApiValidatorCallout implements Execution {
             .withLevel("validation.response.body.schema.anyOf", ValidationReport.Level.IGNORE)
             .withLevel("validation.response.body.schema.allOf", ValidationReport.Level.IGNORE)
             // Discriminator validation - ignore
+            .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.IGNORE)
+            .build();
+    }
+
+    /**
+     * Creates a LevelResolver for moderate mode that ignores additional properties
+     * AND oneOf errors only. anyOf/allOf are still validated.
+     * Individual schemas inside oneOf are still validated for type, required fields, etc.
+     */
+    private static LevelResolver createModerateLevelResolver() {
+        return LevelResolver.create()
+            // Additional properties - ignore
+            .withLevel("validation.request.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
+            // oneOf validation only - ignore the "must match exactly one" constraint
+            // This allows data to match zero or multiple schemas without error
+            .withLevel("validation.request.body.schema.oneOf", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.oneOf", ValidationReport.Level.IGNORE)
+            // anyOf and allOf are still validated (not ignored)
+            // Discriminator - ignore (often used with oneOf)
             .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.IGNORE)
             .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.IGNORE)
             .build();
