@@ -71,7 +71,114 @@ apiproxy/
 
 ## Step 3: Store Your OpenAPI Spec
 
-### Option A: Using URL (Recommended for Apigee Edge with Large Specs)
+### Option A: Using Proxy Resource File with JavaScript Loader (Recommended)
+
+Upload your OpenAPI spec as a resource file in the proxy bundle, then use a JavaScript policy to load it into a variable.
+
+**Step 1: Add spec file to proxy resources**
+
+```
+apiproxy/
+├── proxies/
+│   └── default.xml
+├── policies/
+│   ├── JS-LoadOasSpec.xml
+│   └── JavaCallout-ValidateRequest.xml
+└── resources/
+    ├── jsc/
+    │   └── loadOasSpec.js
+    ├── oas/
+    │   └── petstore.yaml        ← Your OpenAPI spec file
+    └── java/
+        └── openapi-validator-apigee-callout-1.0.0.jar
+```
+
+**Using Apigee UI:**
+1. Go to **Develop** tab
+2. Click **+** next to **Resources**
+3. Select resource type: **OpenAPI Spec** (or **oas**)
+4. Upload your spec file (e.g., `petstore.yaml`)
+
+**Step 2: Create JavaScript to load the resource**
+
+Create `resources/jsc/loadOasSpec.js`:
+```javascript
+// Load OpenAPI spec from resource file and store in variable
+var resourceName = properties.resourceName || 'petstore.yaml';
+
+try {
+    // Read resource file content
+    var specContent = context.getResourceAsString('oas://' + resourceName);
+
+    if (!specContent) {
+        // Try without prefix
+        specContent = context.getResourceAsString(resourceName);
+    }
+
+    if (specContent) {
+        context.setVariable('openapi.spec.content', specContent);
+        context.setVariable('openapi.spec.loaded', 'true');
+    } else {
+        context.setVariable('openapi.spec.loaded', 'false');
+        context.setVariable('openapi.spec.error', 'Could not load resource: ' + resourceName);
+    }
+} catch(e) {
+    context.setVariable('openapi.spec.loaded', 'false');
+    context.setVariable('openapi.spec.error', 'Error loading spec: ' + e.message);
+}
+```
+
+**Step 3: Create the JavaScript policy**
+
+Create `policies/JS-LoadOasSpec.xml`:
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Javascript name="JS-LoadOasSpec" timeLimit="2000">
+    <Properties>
+        <Property name="resourceName">petstore.yaml</Property>
+    </Properties>
+    <ResourceURL>jsc://loadOasSpec.js</ResourceURL>
+</Javascript>
+```
+
+**Step 4: Configure proxy flow**
+
+```xml
+<PreFlow>
+    <Request>
+        <!-- Load spec from resource file into variable -->
+        <Step>
+            <Name>JS-LoadOasSpec</Name>
+        </Step>
+        <!-- Validate request using the variable -->
+        <Step>
+            <Name>JavaCallout-ValidateRequest</Name>
+        </Step>
+        <Step>
+            <Name>RaiseFault-ValidationError</Name>
+            <Condition>openapi.validation.failed = "true"</Condition>
+        </Step>
+    </Request>
+</PreFlow>
+```
+
+**Step 5: Configure Java Callout**
+
+```xml
+<JavaCallout name="JavaCallout-ValidateRequest">
+    <Properties>
+        <Property name="specfile">{openapi.spec.content}</Property>
+        <Property name="validation-type">request</Property>
+        <Property name="validation-level">strict</Property>
+    </Properties>
+    <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
+    <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
+</JavaCallout>
+```
+
+> **Benefits:** No KVM size limits, spec is version-controlled with proxy, easy to update.
+
+### Option B: Using URL (For External Spec Storage)
 
 Store your OpenAPI spec in a cloud storage bucket (GCS, S3, Azure Blob) or any HTTP server, and fetch it via URL. The spec is cached after first fetch.
 
