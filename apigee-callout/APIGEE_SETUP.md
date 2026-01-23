@@ -71,7 +71,39 @@ apiproxy/
 
 ## Step 3: Store Your OpenAPI Spec
 
-### Option A: Using Resource File in Proxy Bundle (Recommended for Large Specs)
+### Option A: Using URL (Recommended for Apigee Edge with Large Specs)
+
+Store your OpenAPI spec in a cloud storage bucket (GCS, S3, Azure Blob) or any HTTP server, and fetch it via URL. The spec is cached after first fetch.
+
+**Step 1: Upload spec to storage**
+
+Upload your spec to a publicly accessible URL or one that the Apigee MP can access:
+- Google Cloud Storage: `https://storage.googleapis.com/your-bucket/openapi/petstore.yaml`
+- AWS S3: `https://your-bucket.s3.amazonaws.com/openapi/petstore.yaml`
+- Any HTTP server: `https://your-server.com/specs/petstore.yaml`
+
+**Step 2: Configure Java Callout**
+
+```xml
+<JavaCallout name="JavaCallout-ValidateRequest">
+    <Properties>
+        <Property name="spec-url">https://storage.googleapis.com/your-bucket/openapi/petstore.yaml</Property>
+        <Property name="validation-type">request</Property>
+        <Property name="validation-level">strict</Property>
+    </Properties>
+    <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
+    <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
+</JavaCallout>
+```
+
+**Using a variable for the URL:**
+```xml
+<Property name="spec-url">{openapi.spec.url}</Property>
+```
+
+> **Note:** The spec is cached after first fetch. To reload, redeploy the proxy or call `clearUrlCache()`.
+
+### Option B: Using Resource File in Proxy Bundle
 
 Upload your OpenAPI spec as a resource file in the proxy bundle. Use a JavaScript policy to load it into a variable.
 
@@ -527,11 +559,12 @@ Expected response:
 | Property | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `specfile` | No* | - | OpenAPI spec content (YAML or JSON). Can be literal or variable reference `{varName}` |
-| `spec-resource` | No* | - | Path to spec file in proxy resources (e.g., `openapi/petstore.yaml`). **Recommended for large specs.** |
+| `spec-url` | No* | - | URL to fetch spec from (e.g., `https://storage.googleapis.com/bucket/spec.yaml`). **Recommended for Apigee Edge.** |
+| `spec-resource` | No* | - | Path to spec file bundled in JAR (e.g., `openapi/petstore.yaml`). Requires JAR rebuild. |
 | `validation-type` | No | `request` | Type of validation: `request` or `response` |
 | `validation-level` | No | `strict` | Validation level: `strict`, `lenient`, or `light` |
 
-> **Note:** Either `specfile` or `spec-resource` must be provided. `specfile` takes precedence if both are set.
+> **Note:** One of `specfile`, `spec-url`, or `spec-resource` must be provided. They are checked in that order.
 
 ### Output Variables
 

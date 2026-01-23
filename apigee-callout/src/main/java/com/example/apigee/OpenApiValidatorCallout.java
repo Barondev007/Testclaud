@@ -15,6 +15,8 @@ import com.atlassian.oai.validator.report.ValidationReport;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,15 +27,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * Apigee Java Callout for OpenAPI Request/Response Validation
  *
  * Features:
- * - Spec content from property, variable, or resource file
+ * - Spec content from property, variable, URL, or resource file
  * - Thread-safe validator caching (one validator per unique spec + validation level)
  * - Configurable validation levels
  * - Support for both request and response validation
  *
- * Spec Source (one of these is required):
- * - specfile : The OpenAPI spec content as a String (YAML or JSON), or variable reference {varName}
- * - spec-resource : Path to spec file in proxy resources (e.g., "openapi/petstore.yaml")
- *                   File should be placed in: apiproxy/resources/openapi/petstore.yaml
+ * Spec Source (one of these is required, checked in order):
+ * 1. specfile     : The OpenAPI spec content as a String (YAML or JSON), or variable reference {varName}
+ * 2. spec-url     : URL to fetch the spec from (e.g., "https://storage.googleapis.com/bucket/spec.yaml")
+ * 3. spec-resource: Path to spec file bundled inside the JAR (e.g., "openapi/petstore.yaml")
  *
  * Optional Properties:
  * - validation-type : Type of validation (default: "request")
@@ -88,11 +90,20 @@ public class OpenApiValidatorCallout implements Execution {
     @Override
     public ExecutionResult execute(MessageContext messageContext, ExecutionContext executionContext) {
         try {
-            // Get spec content - try specfile first, then spec-resource
+            // Get spec content - try specfile first, then spec-url, then spec-resource
             String specContent = resolveProperty("specfile", messageContext);
             String specSource = "specfile";
 
-            // If specfile is not set, try to load from resource file
+            // If specfile is not set, try to load from URL
+            if (specContent == null || specContent.isEmpty()) {
+                String specUrl = resolveProperty("spec-url", messageContext);
+                if (specUrl != null && !specUrl.isEmpty()) {
+                    specContent = loadFromUrl(specUrl);
+                    specSource = "spec-url:" + specUrl;
+                }
+            }
+
+            // If still not set, try to load from resource file (bundled in JAR)
             if (specContent == null || specContent.isEmpty()) {
                 String resourcePath = resolveProperty("spec-resource", messageContext);
                 if (resourcePath != null && !resourcePath.isEmpty()) {
@@ -118,7 +129,7 @@ public class OpenApiValidatorCallout implements Execution {
                 if (lastResourceError != null) {
                     errorMsg += lastResourceError;
                 } else {
-                    errorMsg += "Set 'specfile' or 'spec-resource' property.";
+                    errorMsg += "Set 'specfile', 'spec-url', or 'spec-resource' property.";
                 }
                 setError(messageContext, errorMsg);
                 return ExecutionResult.ABORT;
@@ -407,6 +418,73 @@ public class OpenApiValidatorCallout implements Execution {
     // ========================================================================
     // HELPER METHODS
     // ========================================================================
+
+    // Cache for URL-loaded specs (to avoid fetching on every request)
+    private static final ConcurrentHashMap<String, String> SPEC_URL_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * Load spec content from a URL.
+     * The spec is cached after first fetch to avoid network calls on every request.
+     *
+     * @param specUrl URL to fetch the spec from
+     * @return The spec content as a String, or null if fetch failed
+     */
+    private String loadFromUrl(String specUrl) {
+        // Check cache first
+        String cached = SPEC_URL_CACHE.get(specUrl);
+        if (cached != null) {
+            return cached;
+        }
+
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(specUrl);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(10000); // 10 seconds
+            connection.setReadTimeout(30000);    // 30 seconds
+            connection.setRequestProperty("Accept", "application/yaml, application/json, text/yaml, text/plain");
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode != 200) {
+                lastResourceError = "Failed to fetch spec from URL '" + specUrl + "': HTTP " + responseCode;
+                return null;
+            }
+
+            // Read the content
+            StringBuilder content = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append("\n");
+                }
+            }
+
+            String specContent = content.toString();
+
+            // Cache the spec
+            SPEC_URL_CACHE.put(specUrl, specContent);
+            lastResourceError = null;
+
+            return specContent;
+
+        } catch (Exception e) {
+            lastResourceError = "Error fetching spec from URL '" + specUrl + "': " + e.getMessage();
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    /**
+     * Clear the URL spec cache. Call this if you need to reload specs from URLs.
+     */
+    public static void clearUrlCache() {
+        SPEC_URL_CACHE.clear();
+    }
 
     /**
      * Load spec content from a resource file.
