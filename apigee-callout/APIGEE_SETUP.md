@@ -103,9 +103,9 @@ Upload your spec to a publicly accessible URL or one that the Apigee MP can acce
 
 > **Note:** The spec is cached after first fetch. To reload, redeploy the proxy or call `clearUrlCache()`.
 
-### Option B: Using Resource File in Proxy Bundle
+### Option B: Using Proxy Resource File (Like OASValidation Policy)
 
-Upload your OpenAPI spec as a resource file in the proxy bundle. Use a JavaScript policy to load it into a variable.
+Upload your OpenAPI spec as a resource file in the proxy bundle. The Java Callout accesses it directly, similar to the built-in OASValidation policy.
 
 **Step 1: Add spec file to proxy resources**
 
@@ -114,117 +114,27 @@ apiproxy/
 ├── proxies/
 │   └── default.xml
 ├── policies/
-│   ├── JS-LoadSpec.xml
 │   └── JavaCallout-ValidateRequest.xml
 └── resources/
-    ├── jsc/
-    │   └── loadSpec.js          ← JavaScript to load the spec
-    ├── openapi/
-    │   └── petstore.yaml        ← Your OpenAPI spec file
+    ├── oas/
+    │   └── petstore.yaml        ← Your OpenAPI spec file (OAS type)
     └── java/
         └── openapi-validator-apigee-callout-1.0.0.jar
 ```
 
-**Step 2: Create JavaScript policy to load the spec**
+**Using Apigee UI:**
+1. Go to **Develop** tab
+2. Click **+** next to **Resources**
+3. Select resource type: **OpenAPI Spec** (or **oas**)
+4. Upload your spec file
 
-Create `policies/JS-LoadSpec.xml`:
-```xml
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Javascript name="JS-LoadSpec" timeLimit="2000">
-    <Properties>
-        <Property name="specPath">openapi/petstore.yaml</Property>
-    </Properties>
-    <ResourceURL>jsc://loadSpec.js</ResourceURL>
-</Javascript>
-```
-
-Create `resources/jsc/loadSpec.js`:
-```javascript
-// Load OpenAPI spec from resource file
-var specPath = properties.specPath;
-
-try {
-    // Read the resource file content
-    var specContent = context.getVariable('request.header.x-spec-content');
-
-    // If not available via header, try to read from resource
-    if (!specContent) {
-        // Use httpClient or resourceAsStream depending on Apigee version
-        var inputStream = context.resourceAsStream(specPath);
-        if (inputStream) {
-            var reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(inputStream, 'UTF-8')
-            );
-            var content = '';
-            var line;
-            while ((line = reader.readLine()) !== null) {
-                content += line + '\n';
-            }
-            reader.close();
-            specContent = content;
-        }
-    }
-
-    if (specContent) {
-        context.setVariable('openapi.spec.content', specContent);
-        context.setVariable('openapi.spec.loaded', 'true');
-    } else {
-        context.setVariable('openapi.spec.loaded', 'false');
-        context.setVariable('openapi.spec.error', 'Could not load spec from: ' + specPath);
-    }
-} catch (e) {
-    context.setVariable('openapi.spec.loaded', 'false');
-    context.setVariable('openapi.spec.error', 'Error loading spec: ' + e.message);
-}
-```
-
-**Alternative: Simpler JavaScript using Include**
-
-If `context.resourceAsStream` doesn't work in your Apigee version, you can include the spec directly:
-
-Create `resources/jsc/loadSpec.js`:
-```javascript
-// The spec content will be included from the resource file
-// This works if you can use IncludeURL in the policy
-var specContent = context.getVariable('openapi.spec.inline');
-if (specContent) {
-    context.setVariable('openapi.spec.content', specContent);
-}
-```
-
-And use AssignMessage to load it:
-```xml
-<AssignMessage name="AM-LoadSpec">
-    <AssignVariable>
-        <Name>openapi.spec.content</Name>
-        <ResourceURL>openapi://petstore.yaml</ResourceURL>
-    </AssignVariable>
-</AssignMessage>
-```
-
-**Step 3: Configure proxy flow**
-
-```xml
-<PreFlow>
-    <Request>
-        <!-- Load spec from resource file -->
-        <Step>
-            <Name>JS-LoadSpec</Name>
-        </Step>
-        <!-- Validate request -->
-        <Step>
-            <Name>JavaCallout-ValidateRequest</Name>
-        </Step>
-    </Request>
-</PreFlow>
-```
-
-**Step 4: Configure Java Callout**
+**Step 2: Configure Java Callout**
 
 ```xml
 <JavaCallout name="JavaCallout-ValidateRequest">
     <Properties>
-        <Property name="specfile">{openapi.spec.content}</Property>
+        <!-- Reference the resource file directly -->
+        <Property name="spec-resource">oas://petstore.yaml</Property>
         <Property name="validation-type">request</Property>
         <Property name="validation-level">strict</Property>
     </Properties>
@@ -233,9 +143,16 @@ And use AssignMessage to load it:
 </JavaCallout>
 ```
 
-### Option B: Using Resource File Bundled in JAR
+**Supported resource path formats:**
+- `oas://petstore.yaml` - OAS resource type (recommended)
+- `openapi/petstore.yaml` - Direct path
+- `petstore.yaml` - Simple filename
 
-Bundle your OpenAPI spec **inside the JAR** at build time. This is useful if you want a self-contained JAR.
+> **Note:** This works similar to the built-in OASValidation policy's `<OASResource>` element.
+
+### Option C: Using Resource File Bundled in JAR
+
+Bundle your OpenAPI spec **inside the JAR** at build time. Useful if you want a self-contained JAR.
 
 **Step 1: Add spec to JAR source**
 
@@ -560,7 +477,7 @@ Expected response:
 |----------|----------|---------|-------------|
 | `specfile` | No* | - | OpenAPI spec content (YAML or JSON). Can be literal or variable reference `{varName}` |
 | `spec-url` | No* | - | URL to fetch spec from (e.g., `https://storage.googleapis.com/bucket/spec.yaml`). **Recommended for Apigee Edge.** |
-| `spec-resource` | No* | - | Path to spec file bundled in JAR (e.g., `openapi/petstore.yaml`). Requires JAR rebuild. |
+| `spec-resource` | No* | - | Path to spec file in proxy resources (e.g., `oas://petstore.yaml` or `openapi/petstore.yaml`). Works like OASValidation policy. |
 | `validation-type` | No | `request` | Type of validation: `request` or `response` |
 | `validation-level` | No | `strict` | Validation level: `strict`, `lenient`, or `light` |
 

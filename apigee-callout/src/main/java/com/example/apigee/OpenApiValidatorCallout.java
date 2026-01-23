@@ -103,11 +103,11 @@ public class OpenApiValidatorCallout implements Execution {
                 }
             }
 
-            // If still not set, try to load from resource file (bundled in JAR)
+            // If still not set, try to load from proxy resource file
             if (specContent == null || specContent.isEmpty()) {
                 String resourcePath = resolveProperty("spec-resource", messageContext);
                 if (resourcePath != null && !resourcePath.isEmpty()) {
-                    specContent = loadResourceFile(resourcePath);
+                    specContent = loadProxyResource(resourcePath, messageContext);
                     specSource = "spec-resource:" + resourcePath;
                 }
             }
@@ -115,6 +115,7 @@ public class OpenApiValidatorCallout implements Execution {
             // Debug variables
             messageContext.setVariable("openapi.debug.spec.source", specSource);
             messageContext.setVariable("openapi.debug.specfile.raw", properties.get("specfile"));
+            messageContext.setVariable("openapi.debug.spec-url", properties.get("spec-url"));
             messageContext.setVariable("openapi.debug.spec-resource", properties.get("spec-resource"));
             messageContext.setVariable("openapi.debug.specfile.resolved",
                 specContent != null ? specContent.substring(0, Math.min(200, specContent.length())) : "NULL");
@@ -487,59 +488,131 @@ public class OpenApiValidatorCallout implements Execution {
     }
 
     /**
-     * Load spec content from a resource file.
+     * Load spec content from a proxy resource file.
+     * Tries multiple approaches to access proxy resources like the OASValidation policy does.
      *
-     * The file must be bundled INSIDE the JAR at build time.
-     * Place your spec file in: src/main/resources/openapi/petstore.yaml
-     * Then reference it as: spec-resource=openapi/petstore.yaml
+     * Resource path formats supported:
+     * - "oas://petstore.yaml" (OAS resource type)
+     * - "openapi/petstore.yaml" (direct path)
+     * - "petstore.yaml" (simple filename)
      *
-     * @param resourcePath Path to the resource file (e.g., "openapi/petstore.yaml")
+     * @param resourcePath Path to the resource file
+     * @param messageContext The message context for accessing proxy resources
      * @return The file content as a String, or null if not found
      */
-    private String loadResourceFile(String resourcePath) {
+    private String loadProxyResource(String resourcePath, MessageContext messageContext) {
         StringBuilder errors = new StringBuilder();
+        InputStream inputStream = null;
+
+        // Normalize resource path - remove oas:// prefix if present
+        String normalizedPath = resourcePath;
+        if (resourcePath.startsWith("oas://")) {
+            normalizedPath = resourcePath.substring(6);
+        }
 
         try {
-            InputStream inputStream = null;
-
-            // Try 1: Thread context classloader
-            ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-            if (contextLoader != null) {
-                inputStream = contextLoader.getResourceAsStream(resourcePath);
-                if (inputStream == null) {
-                    errors.append("ContextClassLoader: not found; ");
+            // Try 1: Use MessageContext's getResourceAsStream via reflection
+            try {
+                java.lang.reflect.Method method = messageContext.getClass().getMethod("getResourceAsStream", String.class);
+                inputStream = (InputStream) method.invoke(messageContext, normalizedPath);
+                if (inputStream != null) {
+                    errors.append("messageContext.getResourceAsStream: found; ");
+                } else {
+                    errors.append("messageContext.getResourceAsStream: not found; ");
                 }
-            } else {
-                errors.append("ContextClassLoader: null; ");
+            } catch (NoSuchMethodException e) {
+                errors.append("messageContext.getResourceAsStream: method not available; ");
+            } catch (Exception e) {
+                errors.append("messageContext.getResourceAsStream: " + e.getMessage() + "; ");
             }
 
-            // Try 2: Class classloader
+            // Try 2: Access through context's getContext() method
             if (inputStream == null) {
-                inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
-                if (inputStream == null) {
+                try {
+                    java.lang.reflect.Method getContextMethod = messageContext.getClass().getMethod("getContext");
+                    Object context = getContextMethod.invoke(messageContext);
+                    if (context != null) {
+                        java.lang.reflect.Method method = context.getClass().getMethod("getResourceAsStream", String.class);
+                        inputStream = (InputStream) method.invoke(context, normalizedPath);
+                        if (inputStream != null) {
+                            errors.append("context.getResourceAsStream: found; ");
+                        } else {
+                            errors.append("context.getResourceAsStream: not found; ");
+                        }
+                    }
+                } catch (NoSuchMethodException e) {
+                    errors.append("context.getResourceAsStream: method not available; ");
+                } catch (Exception e) {
+                    errors.append("context.getResourceAsStream: " + e.getMessage() + "; ");
+                }
+            }
+
+            // Try 3: Access through getEnvironment().getResourceAsStream()
+            if (inputStream == null) {
+                try {
+                    java.lang.reflect.Method getEnvMethod = messageContext.getClass().getMethod("getEnvironment");
+                    Object env = getEnvMethod.invoke(messageContext);
+                    if (env != null) {
+                        java.lang.reflect.Method method = env.getClass().getMethod("getResourceAsStream", String.class);
+                        inputStream = (InputStream) method.invoke(env, normalizedPath);
+                        if (inputStream != null) {
+                            errors.append("environment.getResourceAsStream: found; ");
+                        } else {
+                            errors.append("environment.getResourceAsStream: not found; ");
+                        }
+                    }
+                } catch (NoSuchMethodException e) {
+                    errors.append("environment.getResourceAsStream: method not available; ");
+                } catch (Exception e) {
+                    errors.append("environment.getResourceAsStream: " + e.getMessage() + "; ");
+                }
+            }
+
+            // Try 4: Try to get resource from a variable that might have been set by another policy
+            if (inputStream == null) {
+                String varContent = messageContext.getVariable("proxyresource." + normalizedPath);
+                if (varContent != null && !varContent.isEmpty()) {
+                    lastResourceError = null;
+                    return varContent;
+                }
+                errors.append("proxyresource variable: not found; ");
+            }
+
+            // Try 5: Thread context classloader (for JAR-bundled resources)
+            if (inputStream == null) {
+                ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+                if (contextLoader != null) {
+                    inputStream = contextLoader.getResourceAsStream(normalizedPath);
+                    if (inputStream != null) {
+                        errors.append("ContextClassLoader: found; ");
+                    } else {
+                        errors.append("ContextClassLoader: not found; ");
+                    }
+                }
+            }
+
+            // Try 6: Class classloader
+            if (inputStream == null) {
+                inputStream = getClass().getClassLoader().getResourceAsStream(normalizedPath);
+                if (inputStream != null) {
+                    errors.append("ClassLoader: found; ");
+                } else {
                     errors.append("ClassLoader: not found; ");
                 }
             }
 
-            // Try 3: Direct class resource (with leading slash)
+            // Try 7: Direct class resource
             if (inputStream == null) {
-                inputStream = getClass().getResourceAsStream("/" + resourcePath);
-                if (inputStream == null) {
+                inputStream = getClass().getResourceAsStream("/" + normalizedPath);
+                if (inputStream != null) {
+                    errors.append("Class.getResourceAsStream(/): found; ");
+                } else {
                     errors.append("Class.getResourceAsStream(/): not found; ");
                 }
             }
 
-            // Try 4: Direct class resource (without leading slash)
             if (inputStream == null) {
-                inputStream = getClass().getResourceAsStream(resourcePath);
-                if (inputStream == null) {
-                    errors.append("Class.getResourceAsStream(): not found; ");
-                }
-            }
-
-            if (inputStream == null) {
-                lastResourceError = "Resource '" + resourcePath + "' not found. Tried: " + errors.toString() +
-                    "Make sure the file is inside the JAR (place in src/main/resources/).";
+                lastResourceError = "Resource '" + resourcePath + "' not found. Tried: " + errors.toString();
                 return null;
             }
 
@@ -555,7 +628,7 @@ public class OpenApiValidatorCallout implements Execution {
             return content.toString();
 
         } catch (Exception e) {
-            lastResourceError = "Error loading resource '" + resourcePath + "': " + e.getMessage();
+            lastResourceError = "Error loading resource '" + resourcePath + "': " + e.getMessage() + ". Tried: " + errors.toString();
             return null;
         }
     }
