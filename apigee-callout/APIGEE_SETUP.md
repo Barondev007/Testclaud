@@ -5,7 +5,8 @@ This guide explains how to use the OpenAPI Validator Java Callout in Apigee to v
 ## Features
 
 - **Request and Response validation** (configurable via property)
-- **Spec content passed as property** (not from file path)
+- **Multiple spec sources**: property, variable, KVM, or resource file
+- **Resource file support**: Upload large specs as files (no KVM size limits)
 - **Thread-safe validator caching** (one validator per unique spec + validation level)
 - **Configurable validation levels** (light, lenient, strict)
 - **Multiple APIs in parallel** (each spec gets its own cached validator)
@@ -70,18 +71,58 @@ apiproxy/
 
 ## Step 3: Store Your OpenAPI Spec
 
-### Option A: Using KVM (Key Value Map)
+### Option A: Using Resource File (Recommended for Large Specs)
+
+Upload your OpenAPI spec as a resource file in the proxy bundle. This avoids KVM size limits (~512KB).
+
+**Proxy bundle structure:**
+```
+apiproxy/
+├── proxies/
+│   └── default.xml
+├── policies/
+│   └── JavaCallout-ValidateRequest.xml
+└── resources/
+    ├── java/
+    │   └── openapi-validator-apigee-callout-1.0.0.jar
+    └── openapi/
+        └── petstore.yaml    ← Your OpenAPI spec file
+```
+
+**Using Apigee UI:**
+1. Go to **Develop** tab
+2. Click **+** next to **Resources**
+3. Select **Other** (or appropriate type)
+4. Upload your spec file (e.g., `petstore.yaml`)
+5. Set the resource path (e.g., `openapi/petstore.yaml`)
+
+**Java Callout configuration:**
+```xml
+<JavaCallout name="JavaCallout-ValidateRequest">
+    <Properties>
+        <Property name="spec-resource">openapi/petstore.yaml</Property>
+        <Property name="validation-type">request</Property>
+        <Property name="validation-level">strict</Property>
+    </Properties>
+    <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
+    <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
+</JavaCallout>
+```
+
+### Option B: Using KVM (Key Value Map)
+
+> **Note:** KVM has a size limit of ~512KB per entry. For large specs, use Option A (Resource File).
 
 1. Create a KVM named `openapi-specs`
 2. Add an entry:
    - Key: `users-api-spec`
    - Value: (your OpenAPI spec YAML/JSON content)
 
-### Option B: Using Properties
+### Option C: Using Properties
 
 Store the spec in a property file or environment variable.
 
-### Option C: Using AssignMessage to Set Variable
+### Option D: Using AssignMessage to Set Variable
 
 Create an AssignMessage policy to set the spec content:
 
@@ -357,9 +398,12 @@ Expected response:
 
 | Property | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `specfile` | Yes | - | OpenAPI spec content (YAML or JSON). Can be literal or variable reference `{varName}` |
+| `specfile` | No* | - | OpenAPI spec content (YAML or JSON). Can be literal or variable reference `{varName}` |
+| `spec-resource` | No* | - | Path to spec file in proxy resources (e.g., `openapi/petstore.yaml`). **Recommended for large specs.** |
 | `validation-type` | No | `request` | Type of validation: `request` or `response` |
 | `validation-level` | No | `strict` | Validation level: `strict`, `lenient`, or `light` |
+
+> **Note:** Either `specfile` or `spec-resource` must be provided. `specfile` takes precedence if both are set.
 
 ### Output Variables
 

@@ -12,6 +12,9 @@ import com.atlassian.oai.validator.report.LevelResolver;
 import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,13 +25,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * Apigee Java Callout for OpenAPI Request/Response Validation
  *
  * Features:
- * - Spec content passed directly as property (specfile)
+ * - Spec content from property, variable, or resource file
  * - Thread-safe validator caching (one validator per unique spec + validation level)
  * - Configurable validation levels
  * - Support for both request and response validation
  *
- * Required Properties:
- * - specfile : The OpenAPI spec content as a String (YAML or JSON)
+ * Spec Source (one of these is required):
+ * - specfile : The OpenAPI spec content as a String (YAML or JSON), or variable reference {varName}
+ * - spec-resource : Path to spec file in proxy resources (e.g., "openapi/petstore.yaml")
+ *                   File should be placed in: apiproxy/resources/openapi/petstore.yaml
  *
  * Optional Properties:
  * - validation-type : Type of validation (default: "request")
@@ -83,18 +88,30 @@ public class OpenApiValidatorCallout implements Execution {
     @Override
     public ExecutionResult execute(MessageContext messageContext, ExecutionContext executionContext) {
         try {
-            // Get spec content
+            // Get spec content - try specfile first, then spec-resource
             String specContent = resolveProperty("specfile", messageContext);
+            String specSource = "specfile";
+
+            // If specfile is not set, try to load from resource file
+            if (specContent == null || specContent.isEmpty()) {
+                String resourcePath = resolveProperty("spec-resource", messageContext);
+                if (resourcePath != null && !resourcePath.isEmpty()) {
+                    specContent = loadResourceFile(resourcePath);
+                    specSource = "spec-resource:" + resourcePath;
+                }
+            }
 
             // Debug variables
+            messageContext.setVariable("openapi.debug.spec.source", specSource);
             messageContext.setVariable("openapi.debug.specfile.raw", properties.get("specfile"));
+            messageContext.setVariable("openapi.debug.spec-resource", properties.get("spec-resource"));
             messageContext.setVariable("openapi.debug.specfile.resolved",
                 specContent != null ? specContent.substring(0, Math.min(200, specContent.length())) : "NULL");
             messageContext.setVariable("openapi.debug.specfile.length",
                 specContent != null ? String.valueOf(specContent.length()) : "0");
 
             if (specContent == null || specContent.isEmpty()) {
-                setError(messageContext, "OpenAPI spec not provided. Set 'specfile' property.");
+                setError(messageContext, "OpenAPI spec not provided. Set 'specfile' or 'spec-resource' property.");
                 return ExecutionResult.ABORT;
             }
 
@@ -381,6 +398,53 @@ public class OpenApiValidatorCallout implements Execution {
     // ========================================================================
     // HELPER METHODS
     // ========================================================================
+
+    /**
+     * Load spec content from a resource file in the proxy bundle.
+     * Resource files should be placed in: apiproxy/resources/{resourcePath}
+     *
+     * @param resourcePath Path to the resource file (e.g., "openapi/petstore.yaml")
+     * @return The file content as a String, or null if not found
+     */
+    private String loadResourceFile(String resourcePath) {
+        try {
+            // Try multiple classloader approaches for Apigee compatibility
+            InputStream inputStream = null;
+
+            // Try 1: Thread context classloader
+            ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+            if (contextLoader != null) {
+                inputStream = contextLoader.getResourceAsStream(resourcePath);
+            }
+
+            // Try 2: Class classloader
+            if (inputStream == null) {
+                inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+            }
+
+            // Try 3: Direct class resource
+            if (inputStream == null) {
+                inputStream = getClass().getResourceAsStream("/" + resourcePath);
+            }
+
+            if (inputStream == null) {
+                return null;
+            }
+
+            // Read the content
+            StringBuilder content = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append("\n");
+                }
+            }
+            return content.toString();
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private String resolveProperty(String propertyName, MessageContext messageContext) {
         String value = properties.get(propertyName);
