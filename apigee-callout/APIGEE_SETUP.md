@@ -1,12 +1,13 @@
 # Apigee - OpenAPI Validator Java Callout
 
-This guide explains how to use the OpenAPI Validator Java Callout in Apigee to validate requests against an OpenAPI specification, with support for allowing additional properties.
+This guide explains how to use the OpenAPI Validator Java Callout in Apigee to validate requests and responses against an OpenAPI specification.
 
 ## Features
 
+- **Request and Response validation** (configurable via property)
 - **Spec content passed as property** (not from file path)
-- **Thread-safe validator caching** (one validator per unique spec)
-- **Lenient validation** (allows additional properties by default)
+- **Thread-safe validator caching** (one validator per unique spec + validation level)
+- **Configurable validation levels** (light, lenient, strict)
 - **Multiple APIs in parallel** (each spec gets its own cached validator)
 
 ## Architecture
@@ -119,6 +120,8 @@ paths:
 
 ## Step 4: Create the Java Callout Policy
 
+### Request Validation
+
 Create `JavaCallout-ValidateRequest.xml`:
 
 ```xml
@@ -128,13 +131,41 @@ Create `JavaCallout-ValidateRequest.xml`:
         <!-- Spec content: can be literal or variable reference -->
         <Property name="specfile">{openapi.spec.content}</Property>
 
-        <!-- Optional: set to "false" to enable strict validation -->
-        <Property name="allow-additional-properties">true</Property>
+        <!-- Validation type: "request" (default) or "response" -->
+        <Property name="validation-type">request</Property>
+
+        <!-- Validation level: "strict" (default), "lenient", or "light" -->
+        <Property name="validation-level">strict</Property>
     </Properties>
     <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
     <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
 </JavaCallout>
 ```
+
+### Response Validation
+
+Create `JavaCallout-ValidateResponse.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<JavaCallout name="JavaCallout-ValidateResponse">
+    <Properties>
+        <Property name="specfile">{openapi.spec.content}</Property>
+        <Property name="validation-type">response</Property>
+        <Property name="validation-level">strict</Property>
+    </Properties>
+    <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
+    <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
+</JavaCallout>
+```
+
+### Validation Levels
+
+| Level | Behavior |
+|-------|----------|
+| `strict` | All validation errors block the flow |
+| `lenient` | Additional properties are ignored, other errors block |
+| `light` | Errors are stored in variables but flow is NOT blocked |
 
 ### Using KVM for Spec Content
 
@@ -205,6 +236,18 @@ Update your proxy endpoint (`proxies/default.xml`):
                 <Condition>openapi.validation.failed = "true"</Condition>
             </Step>
         </Request>
+        <Response>
+            <!-- Step 4: Validate response against OpenAPI spec -->
+            <Step>
+                <Name>JavaCallout-ValidateResponse</Name>
+            </Step>
+
+            <!-- Step 5: Handle response validation errors (optional) -->
+            <Step>
+                <Name>RaiseFault-ResponseValidationError</Name>
+                <Condition>openapi.validation.failed = "true"</Condition>
+            </Step>
+        </Response>
     </PreFlow>
 
     <HTTPProxyConnection>
@@ -234,7 +277,27 @@ Update your proxy endpoint (`proxies/default.xml`):
            ▼
 ┌─────────────────────┐
 │   JavaCallout       │  ← Validate request
-│  ValidateRequest    │     (uses cached validator)
+│  ValidateRequest    │     (validation-type=request)
+└──────────┬──────────┘
+           │
+     ┌─────┴─────┐
+     │           │
+  SUCCESS    validation.failed="true"
+     │           │
+     │           ▼
+     │      ┌─────────────┐
+     │      │ RaiseFault  │
+     │      │ (400 Error) │
+     │      └─────────────┘
+     ▼
+┌─────────────────────┐
+│    Target Server    │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│   JavaCallout       │  ← Validate response
+│  ValidateResponse   │     (validation-type=response)
 └──────────┬──────────┘
            │
      ┌─────┴─────┐
@@ -243,10 +306,9 @@ Update your proxy endpoint (`proxies/default.xml`):
      │           │
      ▼           ▼
 ┌─────────┐  ┌─────────────┐
-│ Continue│  │ RaiseFault  │
-│ to      │  │ (400 Error) │
-│ Target  │  └─────────────┘
-└─────────┘
+│ Return  │  │ RaiseFault  │
+│ Response│  │ (500 Error) │
+└─────────┘  └─────────────┘
 ```
 
 ## Step 8: Deploy and Test
@@ -296,14 +358,38 @@ Expected response:
 | Property | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `specfile` | Yes | - | OpenAPI spec content (YAML or JSON). Can be literal or variable reference `{varName}` |
-| `allow-additional-properties` | No | `true` | Set to `false` for strict validation |
+| `validation-type` | No | `request` | Type of validation: `request` or `response` |
+| `validation-level` | No | `strict` | Validation level: `strict`, `lenient`, or `light` |
 
 ### Output Variables
 
 | Variable | Description |
 |----------|-------------|
-| `openapi.validation.error` | Error message if validation fails |
 | `openapi.validation.failed` | `"true"` or `"false"` |
+| `openapi.validation.error` | Error message(s) if validation fails |
+| `openapi.validation.errors.count` | Number of validation errors |
+| `openapi.validation.errors.all` | All error messages (useful for light mode) |
+| `openapi.validation.type` | Type of validation performed: `"request"` or `"response"` |
+
+### Input Variables (read by the callout)
+
+#### For Request Validation
+| Variable | Description |
+|----------|-------------|
+| `request.verb` | HTTP method (GET, POST, etc.) |
+| `proxy.pathsuffix` | Request path |
+| `request.content` | Request body |
+| `request.header.content-type` | Content-Type header |
+| `request.querystring` | Query parameters |
+
+#### For Response Validation
+| Variable | Description |
+|----------|-------------|
+| `request.verb` | HTTP method (needed to match operation) |
+| `proxy.pathsuffix` | Request path (needed to match operation) |
+| `response.status.code` | HTTP response status code |
+| `response.content` | Response body |
+| `response.header.content-type` | Response Content-Type header |
 
 ## Performance
 
