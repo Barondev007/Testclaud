@@ -71,54 +71,128 @@ apiproxy/
 
 ## Step 3: Store Your OpenAPI Spec
 
-### Option A: Using Resource File Bundled in JAR (Recommended for Large Specs)
+### Option A: Using Resource File in Proxy Bundle (Recommended for Large Specs)
 
-Bundle your OpenAPI spec **inside the JAR** at build time. This avoids KVM size limits (~512KB).
+Upload your OpenAPI spec as a resource file in the proxy bundle. Use a JavaScript policy to load it into a variable.
 
-> **Important:** The spec file must be inside the JAR, not in `apiproxy/resources/`. Apigee Java Callouts cannot access proxy resources directly.
+**Step 1: Add spec file to proxy resources**
 
-**Step 1: Add spec to JAR source**
-
-Place your spec file in the callout project's resources folder:
-```
-apigee-callout/
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── com/example/apigee/OpenApiValidatorCallout.java
-│       └── resources/
-│           └── openapi/
-│               └── petstore.yaml    ← Your OpenAPI spec file HERE
-└── pom.xml
-```
-
-**Step 2: Rebuild the JAR**
-```bash
-cd apigee-callout
-mvn clean package
-```
-
-The spec will be bundled inside `openapi-validator-apigee-callout-1.0.0.jar`.
-
-**Step 3: Deploy and configure**
-
-**Proxy bundle structure:**
 ```
 apiproxy/
 ├── proxies/
 │   └── default.xml
 ├── policies/
+│   ├── JS-LoadSpec.xml
 │   └── JavaCallout-ValidateRequest.xml
 └── resources/
+    ├── jsc/
+    │   └── loadSpec.js          ← JavaScript to load the spec
+    ├── openapi/
+    │   └── petstore.yaml        ← Your OpenAPI spec file
     └── java/
-        └── openapi-validator-apigee-callout-1.0.0.jar  ← Contains the spec
+        └── openapi-validator-apigee-callout-1.0.0.jar
 ```
 
-**Java Callout configuration:**
+**Step 2: Create JavaScript policy to load the spec**
+
+Create `policies/JS-LoadSpec.xml`:
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Javascript name="JS-LoadSpec" timeLimit="2000">
+    <Properties>
+        <Property name="specPath">openapi/petstore.yaml</Property>
+    </Properties>
+    <ResourceURL>jsc://loadSpec.js</ResourceURL>
+</Javascript>
+```
+
+Create `resources/jsc/loadSpec.js`:
+```javascript
+// Load OpenAPI spec from resource file
+var specPath = properties.specPath;
+
+try {
+    // Read the resource file content
+    var specContent = context.getVariable('request.header.x-spec-content');
+
+    // If not available via header, try to read from resource
+    if (!specContent) {
+        // Use httpClient or resourceAsStream depending on Apigee version
+        var inputStream = context.resourceAsStream(specPath);
+        if (inputStream) {
+            var reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(inputStream, 'UTF-8')
+            );
+            var content = '';
+            var line;
+            while ((line = reader.readLine()) !== null) {
+                content += line + '\n';
+            }
+            reader.close();
+            specContent = content;
+        }
+    }
+
+    if (specContent) {
+        context.setVariable('openapi.spec.content', specContent);
+        context.setVariable('openapi.spec.loaded', 'true');
+    } else {
+        context.setVariable('openapi.spec.loaded', 'false');
+        context.setVariable('openapi.spec.error', 'Could not load spec from: ' + specPath);
+    }
+} catch (e) {
+    context.setVariable('openapi.spec.loaded', 'false');
+    context.setVariable('openapi.spec.error', 'Error loading spec: ' + e.message);
+}
+```
+
+**Alternative: Simpler JavaScript using Include**
+
+If `context.resourceAsStream` doesn't work in your Apigee version, you can include the spec directly:
+
+Create `resources/jsc/loadSpec.js`:
+```javascript
+// The spec content will be included from the resource file
+// This works if you can use IncludeURL in the policy
+var specContent = context.getVariable('openapi.spec.inline');
+if (specContent) {
+    context.setVariable('openapi.spec.content', specContent);
+}
+```
+
+And use AssignMessage to load it:
+```xml
+<AssignMessage name="AM-LoadSpec">
+    <AssignVariable>
+        <Name>openapi.spec.content</Name>
+        <ResourceURL>openapi://petstore.yaml</ResourceURL>
+    </AssignVariable>
+</AssignMessage>
+```
+
+**Step 3: Configure proxy flow**
+
+```xml
+<PreFlow>
+    <Request>
+        <!-- Load spec from resource file -->
+        <Step>
+            <Name>JS-LoadSpec</Name>
+        </Step>
+        <!-- Validate request -->
+        <Step>
+            <Name>JavaCallout-ValidateRequest</Name>
+        </Step>
+    </Request>
+</PreFlow>
+```
+
+**Step 4: Configure Java Callout**
+
 ```xml
 <JavaCallout name="JavaCallout-ValidateRequest">
     <Properties>
-        <Property name="spec-resource">openapi/petstore.yaml</Property>
+        <Property name="specfile">{openapi.spec.content}</Property>
         <Property name="validation-type">request</Property>
         <Property name="validation-level">strict</Property>
     </Properties>
@@ -127,7 +201,41 @@ apiproxy/
 </JavaCallout>
 ```
 
-> **Tip:** To update the spec, you need to rebuild the JAR and redeploy.
+### Option B: Using Resource File Bundled in JAR
+
+Bundle your OpenAPI spec **inside the JAR** at build time. This is useful if you want a self-contained JAR.
+
+**Step 1: Add spec to JAR source**
+
+```
+apigee-callout/
+├── src/main/
+│   ├── java/...
+│   └── resources/
+│       └── openapi/
+│           └── petstore.yaml    ← Your spec file HERE
+└── pom.xml
+```
+
+**Step 2: Rebuild the JAR**
+```bash
+mvn clean package
+```
+
+**Step 3: Configure Java Callout**
+
+```xml
+<JavaCallout name="JavaCallout-ValidateRequest">
+    <Properties>
+        <Property name="spec-resource">openapi/petstore.yaml</Property>
+        <Property name="validation-type">request</Property>
+    </Properties>
+    <ClassName>com.example.apigee.OpenApiValidatorCallout</ClassName>
+    <ResourceURL>java://openapi-validator-apigee-callout-1.0.0.jar</ResourceURL>
+</JavaCallout>
+```
+
+> **Tip:** To update the spec, rebuild the JAR and redeploy.
 
 ### Option B: Using KVM (Key Value Map)
 
