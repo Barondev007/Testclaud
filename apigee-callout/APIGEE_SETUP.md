@@ -73,61 +73,68 @@ apiproxy/
 
 ### Option A: Using Proxy Resource File with JavaScript Include (Recommended for Apigee Edge)
 
-Store your OpenAPI spec as a JavaScript file and use `<IncludeURL>` to load it. This works reliably in Apigee Edge.
+Store your OpenAPI spec as a JavaScript object and use `<IncludeURL>` to load it. This works reliably in Apigee Edge.
 
-**Step 1: Convert your spec to a JavaScript file**
+**Step 1: Convert your YAML spec to a JavaScript object file**
 
-Create `resources/jsc/openapi-spec.js` containing your spec as a JavaScript variable:
+First, convert your YAML to JSON, then wrap it as a JavaScript object.
+
+Create `resources/jsc/openapi-spec.js` containing your spec as a JavaScript object:
 ```javascript
-// openapi-spec.js - Your OpenAPI specification as a JavaScript variable
-var OPENAPI_SPEC = '{\
-  "openapi": "3.0.3",\
-  "info": {\
-    "title": "Users API",\
-    "version": "1.0.0"\
-  },\
-  "paths": {\
-    "/users": {\
-      "post": {\
-        "requestBody": {\
-          "required": true,\
-          "content": {\
-            "application/json": {\
-              "schema": {\
-                "type": "object",\
-                "required": ["name", "email"],\
-                "properties": {\
-                  "name": { "type": "string" },\
-                  "email": { "type": "string", "format": "email" }\
-                }\
-              }\
-            }\
-          }\
-        },\
-        "responses": {\
-          "201": { "description": "Created" }\
-        }\
-      }\
-    }\
-  }\
-}';
+// openapi-spec.js - Your OpenAPI specification as a JavaScript object
+var OPENAPI_SPEC = {
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Users API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/users": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" }
+        }
+      }
+    }
+  }
+};
 ```
 
-> **Tip:** Use a script to convert your YAML/JSON spec to this format. For example:
+> **Converting YAML to JavaScript object:**
+> 1. Convert YAML to JSON using an online tool or CLI: `yq -o=json petstore.yaml > petstore.json`
+> 2. Add `var OPENAPI_SPEC = ` at the beginning and `;` at the end
+> 3. Save as `openapi-spec.js`
+>
+> Example script:
 > ```bash
-> # Convert JSON spec to JS variable (escaping quotes and newlines)
-> echo "var OPENAPI_SPEC = '" > openapi-spec.js
-> cat petstore.json | sed "s/'/\\\\'/g" | tr '\n' ' ' >> openapi-spec.js
-> echo "';" >> openapi-spec.js
+> # Convert YAML to JSON, then to JS object
+> echo "var OPENAPI_SPEC = " > openapi-spec.js
+> yq -o=json petstore.yaml >> openapi-spec.js
+> echo ";" >> openapi-spec.js
 > ```
 
 **Step 2: Create the loader JavaScript**
 
 Create `resources/jsc/loadOasSpec.js`:
 ```javascript
-// loadOasSpec.js - Sets the spec variable from the included file
+// loadOasSpec.js - Converts JS object to JSON string and sets flow variable
 // OPENAPI_SPEC is defined in openapi-spec.js (included via IncludeURL)
-context.setVariable('openapi.spec.content', OPENAPI_SPEC);
+context.setVariable('openapi.spec.content', JSON.stringify(OPENAPI_SPEC));
 ```
 
 **Step 3: Proxy bundle structure**
