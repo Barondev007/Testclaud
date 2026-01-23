@@ -71,11 +71,66 @@ apiproxy/
 
 ## Step 3: Store Your OpenAPI Spec
 
-### Option A: Using Proxy Resource File with JavaScript Loader (Recommended)
+### Option A: Using Proxy Resource File with JavaScript Include (Recommended for Apigee Edge)
 
-Upload your OpenAPI spec as a resource file in the proxy bundle, then use a JavaScript policy to load it into a variable.
+Store your OpenAPI spec as a JavaScript file and use `<IncludeURL>` to load it. This works reliably in Apigee Edge.
 
-**Step 1: Add spec file to proxy resources**
+**Step 1: Convert your spec to a JavaScript file**
+
+Create `resources/jsc/openapi-spec.js` containing your spec as a JavaScript variable:
+```javascript
+// openapi-spec.js - Your OpenAPI specification as a JavaScript variable
+var OPENAPI_SPEC = '{\
+  "openapi": "3.0.3",\
+  "info": {\
+    "title": "Users API",\
+    "version": "1.0.0"\
+  },\
+  "paths": {\
+    "/users": {\
+      "post": {\
+        "requestBody": {\
+          "required": true,\
+          "content": {\
+            "application/json": {\
+              "schema": {\
+                "type": "object",\
+                "required": ["name", "email"],\
+                "properties": {\
+                  "name": { "type": "string" },\
+                  "email": { "type": "string", "format": "email" }\
+                }\
+              }\
+            }\
+          }\
+        },\
+        "responses": {\
+          "201": { "description": "Created" }\
+        }\
+      }\
+    }\
+  }\
+}';
+```
+
+> **Tip:** Use a script to convert your YAML/JSON spec to this format. For example:
+> ```bash
+> # Convert JSON spec to JS variable (escaping quotes and newlines)
+> echo "var OPENAPI_SPEC = '" > openapi-spec.js
+> cat petstore.json | sed "s/'/\\\\'/g" | tr '\n' ' ' >> openapi-spec.js
+> echo "';" >> openapi-spec.js
+> ```
+
+**Step 2: Create the loader JavaScript**
+
+Create `resources/jsc/loadOasSpec.js`:
+```javascript
+// loadOasSpec.js - Sets the spec variable from the included file
+// OPENAPI_SPEC is defined in openapi-spec.js (included via IncludeURL)
+context.setVariable('openapi.spec.content', OPENAPI_SPEC);
+```
+
+**Step 3: Proxy bundle structure**
 
 ```
 apiproxy/
@@ -86,67 +141,31 @@ apiproxy/
 │   └── JavaCallout-ValidateRequest.xml
 └── resources/
     ├── jsc/
-    │   └── loadOasSpec.js
-    ├── oas/
-    │   └── petstore.yaml        ← Your OpenAPI spec file
+    │   ├── openapi-spec.js       ← Your spec as JS variable
+    │   └── loadOasSpec.js        ← Loader script
     └── java/
         └── openapi-validator-apigee-callout-1.0.0.jar
 ```
 
-**Using Apigee UI:**
-1. Go to **Develop** tab
-2. Click **+** next to **Resources**
-3. Select resource type: **OpenAPI Spec** (or **oas**)
-4. Upload your spec file (e.g., `petstore.yaml`)
-
-**Step 2: Create JavaScript to load the resource**
-
-Create `resources/jsc/loadOasSpec.js`:
-```javascript
-// Load OpenAPI spec from resource file and store in variable
-var resourceName = properties.resourceName || 'petstore.yaml';
-
-try {
-    // Read resource file content
-    var specContent = context.getResourceAsString('oas://' + resourceName);
-
-    if (!specContent) {
-        // Try without prefix
-        specContent = context.getResourceAsString(resourceName);
-    }
-
-    if (specContent) {
-        context.setVariable('openapi.spec.content', specContent);
-        context.setVariable('openapi.spec.loaded', 'true');
-    } else {
-        context.setVariable('openapi.spec.loaded', 'false');
-        context.setVariable('openapi.spec.error', 'Could not load resource: ' + resourceName);
-    }
-} catch(e) {
-    context.setVariable('openapi.spec.loaded', 'false');
-    context.setVariable('openapi.spec.error', 'Error loading spec: ' + e.message);
-}
-```
-
-**Step 3: Create the JavaScript policy**
+**Step 4: Create the JavaScript policy**
 
 Create `policies/JS-LoadOasSpec.xml`:
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Javascript name="JS-LoadOasSpec" timeLimit="2000">
-    <Properties>
-        <Property name="resourceName">petstore.yaml</Property>
-    </Properties>
+    <!-- Include the spec file first (defines OPENAPI_SPEC variable) -->
+    <IncludeURL>jsc://openapi-spec.js</IncludeURL>
+    <!-- Main script that sets the flow variable -->
     <ResourceURL>jsc://loadOasSpec.js</ResourceURL>
 </Javascript>
 ```
 
-**Step 4: Configure proxy flow**
+**Step 5: Configure proxy flow**
 
 ```xml
 <PreFlow>
     <Request>
-        <!-- Load spec from resource file into variable -->
+        <!-- Load spec from JavaScript include into variable -->
         <Step>
             <Name>JS-LoadOasSpec</Name>
         </Step>
@@ -162,7 +181,7 @@ Create `policies/JS-LoadOasSpec.xml`:
 </PreFlow>
 ```
 
-**Step 5: Configure Java Callout**
+**Step 6: Configure Java Callout**
 
 ```xml
 <JavaCallout name="JavaCallout-ValidateRequest">
@@ -176,7 +195,9 @@ Create `policies/JS-LoadOasSpec.xml`:
 </JavaCallout>
 ```
 
-> **Benefits:** No KVM size limits, spec is version-controlled with proxy, easy to update.
+> **Benefits:** Works reliably in Apigee Edge, no KVM size limits, spec is version-controlled with proxy.
+
+See [JavaScript policy documentation](https://docs.apigee.com/api-platform/reference/policies/javascript-policy) for more details on `<IncludeURL>`.
 
 ### Option B: Using URL (For External Spec Storage)
 
