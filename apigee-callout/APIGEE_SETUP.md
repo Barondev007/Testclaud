@@ -416,9 +416,11 @@ Create `JavaCallout-ValidateResponse.xml`:
 
 | Level | Behavior |
 |-------|----------|
-| `strict` | All validation errors block the flow |
-| `lenient` | Additional properties are ignored, other errors block |
-| `light` | Errors are stored in variables but flow is NOT blocked |
+| `strict` | All validation errors block the flow (strictest) |
+| `lenient` | Ignores additional properties AND oneOf/anyOf/allOf errors (matches Apigee OASValidation behavior) |
+| `light` | Errors are stored in variables but flow is NOT blocked (most permissive) |
+
+> **Note:** Use `lenient` mode if you're getting "instance failed to match exactly one schema" errors that don't occur with Apigee's built-in OASValidation policy. The `lenient` mode ignores `oneOf`, `anyOf`, `allOf`, and discriminator validation errors.
 
 ### Using KVM for Spec Content
 

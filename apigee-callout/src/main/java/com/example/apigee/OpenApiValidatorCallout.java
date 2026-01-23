@@ -9,7 +9,6 @@ import com.atlassian.oai.validator.OpenApiInteractionValidator;
 import com.atlassian.oai.validator.model.SimpleRequest;
 import com.atlassian.oai.validator.model.SimpleResponse;
 import com.atlassian.oai.validator.report.LevelResolver;
-import com.atlassian.oai.validator.report.LevelResolverFactory;
 import com.atlassian.oai.validator.report.ValidationReport;
 
 import java.io.BufferedReader;
@@ -280,18 +279,19 @@ public class OpenApiValidatorCallout implements Execution {
 
         switch (validationLevel) {
             case LEVEL_LIGHT:
-                // Light mode: Demote all errors to INFO
+                // Light mode: Demote all errors to INFO (non-blocking)
                 builder.withLevelResolver(createLightLevelResolver());
                 break;
 
             case LEVEL_LENIENT:
-                // Lenient mode: Only ignore additional properties
-                builder.withLevelResolver(LevelResolverFactory.withAdditionalPropertiesIgnored());
+                // Lenient mode: Ignore additional properties AND oneOf/anyOf/allOf errors
+                // This matches Apigee OASValidation policy behavior more closely
+                builder.withLevelResolver(createLenientLevelResolver());
                 break;
 
             case LEVEL_STRICT:
             default:
-                // Strict mode: No level resolver
+                // Strict mode: All validations enforced
                 break;
         }
 
@@ -321,6 +321,38 @@ public class OpenApiValidatorCallout implements Execution {
             .withLevel("validation.request.path.missing", ValidationReport.Level.INFO)
             .withLevel("validation.request.contentType.notAllowed", ValidationReport.Level.INFO)
             .withLevel("validation.request.body.missing", ValidationReport.Level.INFO)
+            // oneOf/anyOf/allOf validation
+            .withLevel("validation.request.body.schema.oneOf", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.anyOf", ValidationReport.Level.INFO)
+            .withLevel("validation.request.body.schema.allOf", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.oneOf", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.anyOf", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.allOf", ValidationReport.Level.INFO)
+            // Discriminator validation
+            .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.INFO)
+            .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.INFO)
+            .build();
+    }
+
+    /**
+     * Creates a LevelResolver for lenient mode that ignores additional properties
+     * AND oneOf/anyOf/allOf errors (to match Apigee OASValidation behavior).
+     */
+    private static LevelResolver createLenientLevelResolver() {
+        return LevelResolver.create()
+            // Additional properties - ignore
+            .withLevel("validation.request.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
+            // oneOf/anyOf/allOf validation - ignore (Apigee OASValidation is lenient here)
+            .withLevel("validation.request.body.schema.oneOf", ValidationReport.Level.IGNORE)
+            .withLevel("validation.request.body.schema.anyOf", ValidationReport.Level.IGNORE)
+            .withLevel("validation.request.body.schema.allOf", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.oneOf", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.anyOf", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.allOf", ValidationReport.Level.IGNORE)
+            // Discriminator validation - ignore
+            .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.IGNORE)
+            .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.IGNORE)
             .build();
     }
 
