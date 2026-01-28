@@ -1,9 +1,11 @@
 package be.bnppf.openapi.validator;
 
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Properties;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +42,35 @@ public class BnppfOpenAPIValidator {
     // Cache for validators: key = specHash + "|" + validationLevel
     private static final ConcurrentHashMap<String, BnppfOpenAPIValidator> validatorCache = new ConcurrentHashMap<>();
 
+    // Version information
+    private static final String VERSION;
+    private static final String ARTIFACT_NAME;
+    private static final String BUILD_TIMESTAMP;
+    private static final String VERSION_PROPERTIES_FILE = "validator-version.properties";
+
+    static {
+        String version = "unknown";
+        String artifactName = "openapi-validator";
+        String buildTimestamp = "unknown";
+
+        try (InputStream is = BnppfOpenAPIValidator.class.getClassLoader()
+                .getResourceAsStream(VERSION_PROPERTIES_FILE)) {
+            if (is != null) {
+                Properties props = new Properties();
+                props.load(is);
+                version = props.getProperty("validator.version", "unknown");
+                artifactName = props.getProperty("validator.name", "openapi-validator");
+                buildTimestamp = props.getProperty("validator.build.timestamp", "unknown");
+            }
+        } catch (Exception e) {
+            Utils.traceMessage("Could not load version properties: " + e.getMessage(), TraceLevel.WARN);
+        }
+
+        VERSION = version;
+        ARTIFACT_NAME = artifactName;
+        BUILD_TIMESTAMP = buildTimestamp;
+    }
+
     private OpenApiInteractionValidator validator;
     private ValidationLevel validationLevel = ValidationLevel.STRICT;
     private boolean debugEnabled = false;
@@ -64,7 +95,7 @@ public class BnppfOpenAPIValidator {
         String cacheKey = hashSpec(openAPISpec) + "|" + level.getValue();
 
         return validatorCache.computeIfAbsent(cacheKey, key -> {
-            Utils.traceMessage("Creating new BnppfOpenAPIValidator instance for level: " + level, TraceLevel.INFO);
+            Utils.traceMessage("Creating new BnppfOpenAPIValidator instance [" + getVersionInfo() + "] for level: " + level, TraceLevel.INFO);
             return new BnppfOpenAPIValidator(openAPISpec, level);
         });
     }
@@ -148,6 +179,7 @@ public class BnppfOpenAPIValidator {
         if (debugEnabled) {
             debugInfo = new StringBuilder();
             debugInfo.append("=== REQUEST VALIDATION ===\n");
+            debugInfo.append("Validator: ").append(getVersionInfo()).append("\n");
             debugInfo.append("Verb: ").append(verb).append("\n");
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Level: ").append(validationLevel).append("\n");
@@ -312,6 +344,7 @@ public class BnppfOpenAPIValidator {
         if (debugEnabled) {
             debugInfo = new StringBuilder();
             debugInfo.append("=== RESPONSE VALIDATION ===\n");
+            debugInfo.append("Validator: ").append(getVersionInfo()).append("\n");
             debugInfo.append("Verb: ").append(verb).append("\n");
             debugInfo.append("Path: ").append(path).append("\n");
             debugInfo.append("Status: ").append(status).append("\n");
@@ -409,6 +442,46 @@ public class BnppfOpenAPIValidator {
         } catch (Exception e) {
             debugInfo.append("  [ERROR] Could not extract query params: ").append(e.getMessage()).append("\n");
         }
+    }
+
+    // ========================================================================
+    // VERSION METHODS
+    // ========================================================================
+
+    /**
+     * Get the library version.
+     *
+     * @return The version string (e.g., "1.0.0-SNAPSHOT")
+     */
+    public static String getVersion() {
+        return VERSION;
+    }
+
+    /**
+     * Get the artifact name.
+     *
+     * @return The artifact name (e.g., "openapi-validator")
+     */
+    public static String getArtifactName() {
+        return ARTIFACT_NAME;
+    }
+
+    /**
+     * Get the build timestamp.
+     *
+     * @return The build timestamp string
+     */
+    public static String getBuildTimestamp() {
+        return BUILD_TIMESTAMP;
+    }
+
+    /**
+     * Get a formatted version info string suitable for logging.
+     *
+     * @return A formatted string with name, version, and build timestamp
+     */
+    public static String getVersionInfo() {
+        return String.format("%s v%s (built: %s)", ARTIFACT_NAME, VERSION, BUILD_TIMESTAMP);
     }
 
     // ========================================================================
