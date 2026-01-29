@@ -259,6 +259,9 @@
         <profile>
             <id>apigee-4.52</id>
             <properties>
+                <!-- Use Java 7 for older Apigee compatibility -->
+                <maven.compiler.source>1.7</maven.compiler.source>
+                <maven.compiler.target>1.7</maven.compiler.target>
                 <!-- Use older compatible versions if needed -->
                 <swagger-request-validator.version>2.30.0</swagger-request-validator.version>
             </properties>
