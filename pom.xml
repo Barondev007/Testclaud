@@ -21,6 +21,8 @@
         <slf4j.version>2.0.9</slf4j.version>
         <groovy.version>3.0.19</groovy.version>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
+        <!-- Workaround for maven.build.timestamp not being passed to filtering -->
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
     </properties>
 
     <dependencies>
