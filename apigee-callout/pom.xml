@@ -137,11 +137,26 @@
                 </configuration>
             </plugin>
 
+            <!-- JAR Plugin - disable ZIP64 for older Apigee compatibility -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Built-By>apigee-callout</Built-By>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
             <!-- Shade Plugin to create uber-JAR with all dependencies -->
+            <!-- Using version 3.2.4 to avoid ZIP64 format issues with older Apigee -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>3.2.4</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -266,10 +281,11 @@
             </properties>
             <build>
                 <plugins>
+                    <!-- Using older shade plugin version to avoid ZIP64 issues -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
+                        <version>3.2.4</version>
                         <executions>
                             <execution>
                                 <phase>package</phase>
