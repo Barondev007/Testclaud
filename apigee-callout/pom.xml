@@ -42,7 +42,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Atlassian Swagger Request Validator Core - exclude SLF4J -->
+        <!-- Atlassian Swagger Request Validator Core - exclude unnecessary dependencies -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>
             <artifactId>swagger-request-validator-core</artifactId>
@@ -72,6 +72,21 @@
                 <exclusion>
                     <groupId>ch.qos.logback</groupId>
                     <artifactId>logback-core</artifactId>
+                </exclusion>
+                <!-- Exclude Joda-Time (not needed, uses Java 8 time) -->
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+                <!-- Exclude validation-api (use Apigee's if needed) -->
+                <exclusion>
+                    <groupId>javax.validation</groupId>
+                    <artifactId>validation-api</artifactId>
+                </exclusion>
+                <!-- Exclude wire-mock related dependencies (not needed at runtime) -->
+                <exclusion>
+                    <groupId>com.github.tomakehurst</groupId>
+                    <artifactId>wiremock</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -123,6 +138,8 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- Minimize JAR by removing unused classes -->
+                            <minimizeJar>true</minimizeJar>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
@@ -130,11 +147,32 @@
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <exclude>META-INF/maven/**</exclude>
+                                        <exclude>META-INF/versions/**</exclude>
                                         <!-- Exclude SLF4J static binder that causes conflict -->
                                         <exclude>org/slf4j/impl/StaticLoggerBinder.class</exclude>
                                         <exclude>org/slf4j/impl/StaticMDCBinder.class</exclude>
                                         <exclude>org/slf4j/impl/StaticMarkerBinder.class</exclude>
+                                        <!-- Exclude module-info classes (Java 9+) -->
+                                        <exclude>module-info.class</exclude>
                                     </excludes>
+                                </filter>
+                                <!-- Keep all classes from swagger-request-validator (needed for validation) -->
+                                <filter>
+                                    <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <!-- Keep all classes from our own code -->
+                                <filter>
+                                    <artifact>com.example:openapi-validator-apigee-callout</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
                                 </filter>
                             </filters>
                             <relocations>
@@ -142,6 +180,40 @@
                                 <relocation>
                                     <pattern>org.slf4j</pattern>
                                     <shadedPattern>shaded.org.slf4j</shadedPattern>
+                                </relocation>
+                                <!-- Relocate Guava to avoid conflicts with Apigee's bundled version -->
+                                <relocation>
+                                    <pattern>com.google.common</pattern>
+                                    <shadedPattern>shaded.com.google.common</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google.thirdparty</pattern>
+                                    <shadedPattern>shaded.com.google.thirdparty</shadedPattern>
+                                </relocation>
+                                <!-- Relocate Jackson to avoid conflicts -->
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+                                <!-- Relocate Apache Commons to avoid conflicts -->
+                                <relocation>
+                                    <pattern>org.apache.commons</pattern>
+                                    <shadedPattern>shaded.org.apache.commons</shadedPattern>
+                                </relocation>
+                                <!-- Relocate SnakeYAML to avoid conflicts -->
+                                <relocation>
+                                    <pattern>org.yaml.snakeyaml</pattern>
+                                    <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
+                                </relocation>
+                                <!-- Relocate Atlassian validator packages -->
+                                <relocation>
+                                    <pattern>com.atlassian.oai</pattern>
+                                    <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
+                                </relocation>
+                                <!-- Relocate io.swagger packages -->
+                                <relocation>
+                                    <pattern>io.swagger</pattern>
+                                    <shadedPattern>shaded.io.swagger</shadedPattern>
                                 </relocation>
                             </relocations>
                             <transformers>
