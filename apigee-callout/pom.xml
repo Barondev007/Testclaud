@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>OpenAPI Validator Apigee Java Callout</name>
-    <description>Apigee Java Callout for OpenAPI request validation with additional properties support</description>
+    <description>Apigee Java Callout for OpenAPI request validation - minimal dependencies</description>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -20,7 +20,6 @@
     </properties>
 
     <repositories>
-        <!-- Apigee Maven Repository for expressions and message-flow JARs -->
         <repository>
             <id>apigee-maven-repo</id>
             <url>https://raw.githubusercontent.com/apigee/api-platform-samples/master/doc-samples/java-cookbook/lib</url>
@@ -28,7 +27,11 @@
     </repositories>
 
     <dependencies>
-        <!-- Apigee Java Callout Dependencies (provided by Apigee runtime) -->
+        <!-- ============================================== -->
+        <!-- APIGEE PROVIDED - NOT BUNDLED IN JAR          -->
+        <!-- ============================================== -->
+
+        <!-- Apigee Java Callout API -->
         <dependency>
             <groupId>com.apigee.edge</groupId>
             <artifactId>expressions</artifactId>
@@ -42,13 +45,67 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Atlassian Swagger Request Validator Core - exclude unnecessary dependencies -->
+        <!-- Jackson - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.12.7</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.12.7</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.12.7</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Guava - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>30.1-jre</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Apache Commons - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.12.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.11.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ============================================== -->
+        <!-- BUNDLED - Only what Apigee doesn't provide    -->
+        <!-- ============================================== -->
+
+        <!-- Atlassian Swagger Request Validator Core -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>
             <artifactId>swagger-request-validator-core</artifactId>
             <version>${swagger-request-validator.version}</version>
             <exclusions>
-                <!-- Exclude SLF4J to avoid conflict with Apigee runtime -->
+                <!-- Exclude everything Apigee provides -->
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
@@ -57,41 +114,54 @@
                     <groupId>ch.qos.logback</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude Joda-Time (not needed, uses Java 8 time) -->
                 <exclusion>
-                    <groupId>joda-time</groupId>
-                    <artifactId>joda-time</artifactId>
-                </exclusion>
-                <!-- Exclude validation-api (use Apigee's if needed) -->
-                <exclusion>
-                    <groupId>javax.validation</groupId>
-                    <artifactId>validation-api</artifactId>
-                </exclusion>
-                <!-- Exclude wire-mock related dependencies (not needed at runtime) -->
-                <exclusion>
-                    <groupId>com.github.tomakehurst</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <!-- Exclude test-related dependencies -->
-                <exclusion>
-                    <groupId>junit</groupId>
+                    <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.hamcrest</groupId>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude unnecessary Jackson modules -->
                 <exclusion>
                     <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>jackson-datatype-jsr310</artifactId>
-                </exclusion>
-                <!-- Exclude Spring dependencies if any -->
-                <exclusion>
-                    <groupId>org.springframework</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude javax.mail -->
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.errorprone</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.j2objc</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-io</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.validation</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>javax.mail</groupId>
                     <artifactId>*</artifactId>
@@ -100,19 +170,68 @@
                     <groupId>com.sun.mail</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.github.tomakehurst</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.checkerframework</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
-        <!-- SLF4J NOP (no-operation) binding - silently discards all logging -->
+        <!-- SnakeYAML - MUST BE BUNDLED (Apigee doesn't provide) -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.36</version>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.33</version>
         </dependency>
+
+        <!-- Swagger Parser Models - MUST BE BUNDLED -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-nop</artifactId>
-            <version>1.7.36</version>
+            <groupId>io.swagger.parser.v3</groupId>
+            <artifactId>swagger-parser</artifactId>
+            <version>2.1.12</version>
+            <exclusions>
+                <!-- Exclude Apigee-provided -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.datatype</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-io</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Test dependencies -->
@@ -126,7 +245,6 @@
 
     <build>
         <plugins>
-            <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -137,22 +255,7 @@
                 </configuration>
             </plugin>
 
-            <!-- JAR Plugin - disable ZIP64 for older Apigee compatibility -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <archive>
-                        <manifestEntries>
-                            <Built-By>apigee-callout</Built-By>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>
-
-            <!-- Shade Plugin to create uber-JAR with all dependencies -->
-            <!-- Using version 3.2.4 to avoid ZIP64 format issues with older Apigee -->
+            <!-- Shade Plugin - minimal configuration -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -165,17 +268,14 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <!-- Minimize JAR by removing unused classes -->
                             <minimizeJar>true</minimizeJar>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
-                                        <!-- Exclude signature files -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
-                                        <!-- Exclude metadata files -->
                                         <exclude>META-INF/NOTICE*</exclude>
                                         <exclude>META-INF/LICENSE*</exclude>
                                         <exclude>META-INF/DEPENDENCIES</exclude>
@@ -184,30 +284,22 @@
                                         <exclude>META-INF/proguard/**</exclude>
                                         <exclude>META-INF/*.kotlin_module</exclude>
                                         <exclude>META-INF/native-image/**</exclude>
-                                        <!-- Exclude SLF4J static binder that causes conflict -->
-                                        <exclude>org/slf4j/impl/StaticLoggerBinder.class</exclude>
-                                        <exclude>org/slf4j/impl/StaticMDCBinder.class</exclude>
-                                        <exclude>org/slf4j/impl/StaticMarkerBinder.class</exclude>
-                                        <!-- Exclude module-info classes (Java 9+) -->
                                         <exclude>module-info.class</exclude>
                                         <exclude>**/module-info.class</exclude>
-                                        <!-- Exclude package-info classes -->
                                         <exclude>**/package-info.class</exclude>
-                                        <!-- Exclude about files -->
-                                        <exclude>about.html</exclude>
-                                        <exclude>changelog.txt</exclude>
                                         <exclude>*.txt</exclude>
                                         <exclude>*.md</exclude>
+                                        <exclude>*.html</exclude>
                                     </excludes>
                                 </filter>
-                                <!-- Keep all classes from swagger-request-validator (needed for validation) -->
+                                <!-- Keep validator core -->
                                 <filter>
                                     <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
                                 </filter>
-                                <!-- Keep all classes from our own code -->
+                                <!-- Keep our callout -->
                                 <filter>
                                     <artifact>com.example:openapi-validator-apigee-callout</artifact>
                                     <includes>
@@ -215,42 +307,16 @@
                                     </includes>
                                 </filter>
                             </filters>
+                            <!-- Only relocate what we're bundling -->
                             <relocations>
-                                <!-- Relocate SLF4J to avoid conflicts with Apigee's version -->
-                                <relocation>
-                                    <pattern>org.slf4j</pattern>
-                                    <shadedPattern>shaded.org.slf4j</shadedPattern>
-                                </relocation>
-                                <!-- Relocate Guava to avoid conflicts with Apigee's bundled version -->
-                                <relocation>
-                                    <pattern>com.google.common</pattern>
-                                    <shadedPattern>shaded.com.google.common</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>com.google.thirdparty</pattern>
-                                    <shadedPattern>shaded.com.google.thirdparty</shadedPattern>
-                                </relocation>
-                                <!-- Relocate Jackson to avoid conflicts -->
-                                <relocation>
-                                    <pattern>com.fasterxml.jackson</pattern>
-                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
-                                </relocation>
-                                <!-- Relocate Apache Commons to avoid conflicts -->
-                                <relocation>
-                                    <pattern>org.apache.commons</pattern>
-                                    <shadedPattern>shaded.org.apache.commons</shadedPattern>
-                                </relocation>
-                                <!-- Relocate SnakeYAML to avoid conflicts -->
                                 <relocation>
                                     <pattern>org.yaml.snakeyaml</pattern>
                                     <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
                                 </relocation>
-                                <!-- Relocate Atlassian validator packages -->
                                 <relocation>
                                     <pattern>com.atlassian.oai</pattern>
                                     <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
                                 </relocation>
-                                <!-- Relocate io.swagger packages -->
                                 <relocation>
                                     <pattern>io.swagger</pattern>
                                     <shadedPattern>shaded.io.swagger</shadedPattern>
@@ -268,115 +334,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!-- Profile for Apigee 4.52.x which has stricter JAR limits -->
-        <profile>
-            <id>apigee-4.52</id>
-            <properties>
-                <!-- Keep Java 8 - lambdas are used in the code -->
-                <maven.compiler.source>1.8</maven.compiler.source>
-                <maven.compiler.target>1.8</maven.compiler.target>
-                <swagger-request-validator.version>2.30.0</swagger-request-validator.version>
-            </properties>
-            <build>
-                <plugins>
-                    <!-- Using older shade plugin version to avoid ZIP64 issues -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.2.4</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <!-- Create a classifier for 4.52 builds -->
-                                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                                    <shadedClassifierName>apigee452</shadedClassifierName>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <!-- Keep META-INF/MANIFEST.MF (required for valid JAR) -->
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>META-INF/NOTICE*</exclude>
-                                                <exclude>META-INF/LICENSE*</exclude>
-                                                <exclude>META-INF/DEPENDENCIES</exclude>
-                                                <exclude>META-INF/maven/**</exclude>
-                                                <exclude>META-INF/versions/**</exclude>
-                                                <exclude>META-INF/proguard/**</exclude>
-                                                <exclude>META-INF/*.kotlin_module</exclude>
-                                                <exclude>META-INF/native-image/**</exclude>
-                                                <exclude>module-info.class</exclude>
-                                                <exclude>**/module-info.class</exclude>
-                                                <exclude>**/package-info.class</exclude>
-                                                <exclude>*.txt</exclude>
-                                                <exclude>*.md</exclude>
-                                                <exclude>*.html</exclude>
-                                            </excludes>
-                                        </filter>
-                                        <filter>
-                                            <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
-                                            <includes>
-                                                <include>**</include>
-                                            </includes>
-                                        </filter>
-                                        <filter>
-                                            <artifact>com.example:openapi-validator-apigee-callout</artifact>
-                                            <includes>
-                                                <include>**</include>
-                                            </includes>
-                                        </filter>
-                                    </filters>
-                                    <relocations>
-                                        <relocation>
-                                            <pattern>org.slf4j</pattern>
-                                            <shadedPattern>shaded.org.slf4j</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>com.google</pattern>
-                                            <shadedPattern>shaded.com.google</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>com.fasterxml</pattern>
-                                            <shadedPattern>shaded.com.fasterxml</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>org.apache</pattern>
-                                            <shadedPattern>shaded.org.apache</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>org.yaml</pattern>
-                                            <shadedPattern>shaded.org.yaml</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>com.atlassian</pattern>
-                                            <shadedPattern>shaded.com.atlassian</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>io.swagger</pattern>
-                                            <shadedPattern>shaded.io.swagger</shadedPattern>
-                                        </relocation>
-                                    </relocations>
-                                    <transformers>
-                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                            <mainClass>com.example.apigee.OpenApiValidatorCallout</mainClass>
-                                        </transformer>
-                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                    </transformers>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
