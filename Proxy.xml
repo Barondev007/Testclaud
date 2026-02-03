@@ -1,0 +1,5 @@
+<AssignMessage name="AM-DebugResponse">
+    <Set>
+        <Payload contentType="application/json">{debug.tls.info}</Payload>
+    </Set>
+</AssignMessage>
