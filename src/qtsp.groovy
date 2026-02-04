@@ -319,12 +319,6 @@ def GenerateQtspKpsFile(String workspaceDir, String country) {
 
     serviceProviders.each { provider ->
         try {
-            // Check if provider has QWAC service type
-            def qServiceTypes = provider?.qServiceTypes
-            if (qServiceTypes == null || !qServiceTypes.contains("QWAC")) {
-                return  // Skip this provider
-            }
-
             def services = provider?.services
             if (services == null) {
                 return  // Skip this provider
@@ -332,11 +326,11 @@ def GenerateQtspKpsFile(String workspaceDir, String country) {
 
             services.each { service ->
                 try {
-                    def currentStatus = service?.currentStatus
-                    def serviceQTypes = service?.qServiceTypes
+                    def serviceLegalTypes = service?.serviceLegalTypes
+                    def isActive = service?.active
 
-                    // Check if service is trusted and has QWAC type
-                    if (currentStatus?.contains("Trusted") && serviceQTypes?.contains("QWAC")) {
+                    // Check if service is active and has QWAC type (Q_WAC in serviceLegalTypes)
+                    if (isActive == true && serviceLegalTypes?.contains("Q_WAC")) {
 
                         // Safely extract certificate data
                         def digitalIdentity = service?.digitalIdentity
@@ -354,16 +348,14 @@ def GenerateQtspKpsFile(String workspaceDir, String country) {
                         }
 
                         // Extract certificate information safely
-                        def subjectBytes = cert?.subject?.bytes
                         def subjectShortName = cert?.subjectShortName
                         def base64Cert = cert?.base64
 
-                        if (subjectBytes == null || base64Cert == null) {
-                            echo "Warning: Missing required certificate data"
+                        if (base64Cert == null) {
+                            echo "Warning: Missing required certificate data (base64)"
                             return
                         }
 
-                        def cn = subjectBytes.encodeBase64().toString()
                         def certSubjectShortName = (subjectShortName ?: "unknown").replaceAll("[^a-zA-Z0-9]", " ")
                         def sanitizedName = certSubjectShortName.replaceAll("\\s+", "")
 
