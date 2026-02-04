@@ -10,13 +10,15 @@
     <packaging>jar</packaging>
 
     <name>OpenAPI Validator Apigee Java Callout</name>
-    <description>Apigee Java Callout for OpenAPI request validation - minimal dependencies</description>
+    <description>Apigee Java Callout for OpenAPI request validation - minimal JAR with separate dependency JARs</description>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <swagger-request-validator.version>2.30.0</swagger-request-validator.version>
+        <!-- Directory where dependency JARs will be copied for Apigee upload -->
+        <apigee.resources.dir>${project.build.directory}/apigee-resources</apigee.resources.dir>
     </properties>
 
     <repositories>
@@ -27,9 +29,10 @@
     </repositories>
 
     <dependencies>
-        <!-- ============================================== -->
-        <!-- APIGEE PROVIDED - NOT BUNDLED IN JAR          -->
-        <!-- ============================================== -->
+        <!-- ================================================================== -->
+        <!-- APIGEE 4.52 PROVIDED DEPENDENCIES - NOT BUNDLED                   -->
+        <!-- These are available in Apigee Edge runtime                         -->
+        <!-- ================================================================== -->
 
         <!-- Apigee Java Callout API -->
         <dependency>
@@ -45,7 +48,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Jackson - PROVIDED BY APIGEE -->
+        <!-- Jackson 2.12.x - PROVIDED BY APIGEE 4.52 -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
@@ -64,8 +67,20 @@
             <version>2.12.7</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>2.12.7</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.12.7</version>
+            <scope>provided</scope>
+        </dependency>
 
-        <!-- Guava - PROVIDED BY APIGEE -->
+        <!-- Guava 30.x - PROVIDED BY APIGEE 4.52 -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
@@ -73,7 +88,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- SLF4J - PROVIDED BY APIGEE -->
+        <!-- SLF4J 1.7.x - PROVIDED BY APIGEE 4.52 -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -81,7 +96,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Apache Commons - PROVIDED BY APIGEE -->
+        <!-- Apache Commons - PROVIDED BY APIGEE 4.52 -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
@@ -95,17 +110,27 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- ============================================== -->
-        <!-- BUNDLED - Only what Apigee doesn't provide    -->
-        <!-- ============================================== -->
+        <!-- Joda-Time - PROVIDED BY APIGEE 4.52 -->
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>2.10.14</version>
+            <scope>provided</scope>
+        </dependency>
 
-        <!-- Atlassian Swagger Request Validator Core -->
+        <!-- ================================================================== -->
+        <!-- DEPENDENCIES TO UPLOAD AS APIGEE PROXY RESOURCES                  -->
+        <!-- These are NOT available in Apigee Edge 4.52 runtime               -->
+        <!-- They will be copied to target/apigee-resources for upload         -->
+        <!-- ================================================================== -->
+
+        <!-- Atlassian Swagger Request Validator Core - REQUIRED -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>
             <artifactId>swagger-request-validator-core</artifactId>
             <version>${swagger-request-validator.version}</version>
             <exclusions>
-                <!-- Exclude everything Apigee provides -->
+                <!-- Exclude Apigee-provided dependencies -->
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
@@ -193,20 +218,20 @@
             </exclusions>
         </dependency>
 
-        <!-- SnakeYAML - MUST BE BUNDLED (Apigee doesn't provide) -->
+        <!-- SnakeYAML - NOT provided by Apigee, REQUIRED for YAML parsing -->
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
             <version>1.33</version>
         </dependency>
 
-        <!-- Swagger Parser Models - MUST BE BUNDLED -->
+        <!-- Swagger Parser - NOT provided by Apigee, REQUIRED for OpenAPI spec parsing -->
         <dependency>
             <groupId>io.swagger.parser.v3</groupId>
             <artifactId>swagger-parser</artifactId>
             <version>2.1.12</version>
             <exclusions>
-                <!-- Exclude Apigee-provided -->
+                <!-- Exclude Apigee-provided dependencies -->
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
@@ -255,83 +280,242 @@
                 </configuration>
             </plugin>
 
-            <!-- Shade Plugin - minimal configuration -->
+            <!-- Create a minimal JAR with only the callout code (no dependencies) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.4</version>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.example.apigee.OpenApiValidatorCallout</mainClass>
+                            <addClasspath>true</addClasspath>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- Copy runtime dependencies (not provided by Apigee) to apigee-resources folder -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
+                        <id>copy-apigee-resources</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <minimizeJar>true</minimizeJar>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                        <exclude>META-INF/NOTICE*</exclude>
-                                        <exclude>META-INF/LICENSE*</exclude>
-                                        <exclude>META-INF/DEPENDENCIES</exclude>
-                                        <exclude>META-INF/maven/**</exclude>
-                                        <exclude>META-INF/versions/**</exclude>
-                                        <exclude>META-INF/proguard/**</exclude>
-                                        <exclude>META-INF/*.kotlin_module</exclude>
-                                        <exclude>META-INF/native-image/**</exclude>
-                                        <exclude>module-info.class</exclude>
-                                        <exclude>**/module-info.class</exclude>
-                                        <exclude>**/package-info.class</exclude>
-                                        <exclude>*.txt</exclude>
-                                        <exclude>*.md</exclude>
-                                        <exclude>*.html</exclude>
-                                    </excludes>
-                                </filter>
-                                <!-- Keep validator core -->
-                                <filter>
-                                    <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <!-- Keep our callout -->
-                                <filter>
-                                    <artifact>com.example:openapi-validator-apigee-callout</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                            </filters>
-                            <!-- Only relocate what we're bundling -->
-                            <relocations>
-                                <relocation>
-                                    <pattern>org.yaml.snakeyaml</pattern>
-                                    <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>com.atlassian.oai</pattern>
-                                    <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>io.swagger</pattern>
-                                    <shadedPattern>shaded.io.swagger</shadedPattern>
-                                </relocation>
-                            </relocations>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.example.apigee.OpenApiValidatorCallout</mainClass>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                            </transformers>
+                            <outputDirectory>${apigee.resources.dir}</outputDirectory>
+                            <!-- Only include runtime dependencies (not provided, not test) -->
+                            <includeScope>runtime</includeScope>
+                            <!-- Exclude Apigee-provided dependencies -->
+                            <excludeGroupIds>
+                                com.apigee.edge,
+                                com.fasterxml.jackson.core,
+                                com.fasterxml.jackson.dataformat,
+                                com.fasterxml.jackson.datatype,
+                                com.google.guava,
+                                com.google.code.findbugs,
+                                com.google.errorprone,
+                                com.google.j2objc,
+                                org.slf4j,
+                                ch.qos.logback,
+                                org.apache.commons,
+                                commons-io,
+                                commons-logging,
+                                joda-time,
+                                javax.validation,
+                                javax.mail,
+                                com.sun.mail,
+                                org.checkerframework
+                            </excludeGroupIds>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
+                    <!-- Also copy the main JAR to apigee-resources -->
+                    <execution>
+                        <id>copy-main-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${project.version}</version>
+                                    <type>jar</type>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${apigee.resources.dir}</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                    <!-- Generate a list of dependencies for documentation -->
+                    <execution>
+                        <id>list-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>list</goal>
+                        </goals>
+                        <configuration>
+                            <outputFile>${apigee.resources.dir}/DEPENDENCY_LIST.txt</outputFile>
+                            <includeScope>runtime</includeScope>
+                            <excludeGroupIds>
+                                com.apigee.edge,
+                                com.fasterxml.jackson.core,
+                                com.fasterxml.jackson.dataformat,
+                                com.fasterxml.jackson.datatype,
+                                com.google.guava,
+                                com.google.code.findbugs,
+                                com.google.errorprone,
+                                com.google.j2objc,
+                                org.slf4j,
+                                ch.qos.logback,
+                                org.apache.commons,
+                                commons-io,
+                                commons-logging,
+                                joda-time,
+                                javax.validation,
+                                javax.mail,
+                                com.sun.mail,
+                                org.checkerframework
+                            </excludeGroupIds>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate a README for the apigee-resources folder -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-readme</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <echo file="${apigee.resources.dir}/README.txt">
+==========================================================================
+APIGEE PROXY RESOURCES - OpenAPI Validator Java Callout
+==========================================================================
+
+This folder contains all JAR files needed for the OpenAPI Validator
+Java Callout that are NOT provided by Apigee Edge 4.52 runtime.
+
+DEPLOYMENT INSTRUCTIONS:
+------------------------
+1. Upload ALL .jar files from this folder to your Apigee proxy:
+   - Go to Apigee Edge UI > Develop > API Proxies > [Your Proxy]
+   - Click "Develop" tab
+   - Under "Resources", click "+" and select "Java"
+   - Upload each JAR file from this folder
+
+2. Or use the Apigee Management API:
+   curl -X POST \
+     "https://api.enterprise.apigee.com/v1/organizations/{org}/apis/{api}/revisions/{rev}/resources?type=java&amp;name={filename}.jar" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/octet-stream" \
+     --data-binary @{filename}.jar
+
+3. Or place in apiproxy/resources/java/ folder for offline deployment
+
+APIGEE 4.52 PROVIDED DEPENDENCIES (NOT INCLUDED):
+-------------------------------------------------
+- Jackson 2.12.x (jackson-core, jackson-databind, jackson-annotations)
+- Jackson dataformat YAML 2.12.x
+- Guava 30.x
+- SLF4J 1.7.x
+- Apache Commons Lang3 3.x
+- Apache Commons IO 2.x
+- Joda-Time 2.x
+
+These dependencies are available in the Apigee Edge runtime and should
+NOT be uploaded to avoid version conflicts.
+
+==========================================================================
+                                </echo>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
+
+    <!-- Optional: Profile for creating a shaded uber-JAR if needed -->
+    <profiles>
+        <profile>
+            <id>uber-jar</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.2.4</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                                    <minimizeJar>true</minimizeJar>
+                                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <shadedClassifierName>uber</shadedClassifierName>
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                                <exclude>META-INF/NOTICE*</exclude>
+                                                <exclude>META-INF/LICENSE*</exclude>
+                                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                                <exclude>META-INF/maven/**</exclude>
+                                                <exclude>META-INF/versions/**</exclude>
+                                                <exclude>module-info.class</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                    <relocations>
+                                        <relocation>
+                                            <pattern>org.yaml.snakeyaml</pattern>
+                                            <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>com.atlassian.oai</pattern>
+                                            <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>io.swagger</pattern>
+                                            <shadedPattern>shaded.io.swagger</shadedPattern>
+                                        </relocation>
+                                    </relocations>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>com.example.apigee.OpenApiValidatorCallout</mainClass>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

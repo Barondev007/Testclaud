@@ -32,30 +32,71 @@ This guide explains how to use the OpenAPI Validator Java Callout in Apigee to v
     └───────────┘              └───────────┘              └───────────┘
 ```
 
-## Step 1: Build the JAR
+## Step 1: Build the JAR and Dependencies
 
 ```bash
 cd apigee-callout
 mvn clean package
 ```
 
-This creates an uber-JAR with all dependencies:
+This creates:
+1. **A minimal callout JAR** (without bundled dependencies)
+2. **All required dependency JARs** in `target/apigee-resources/`
+
 ```
-target/openapi-validator-apigee-callout-1.0.0.jar
+target/
+├── openapi-validator-apigee-callout-1.0.0.jar   # Minimal callout JAR
+└── apigee-resources/                            # All JARs to upload to Apigee
+    ├── openapi-validator-apigee-callout-1.0.0.jar
+    ├── swagger-request-validator-core-2.30.0.jar
+    ├── swagger-parser-2.1.12.jar
+    ├── snakeyaml-1.33.jar
+    ├── ... (other required dependencies)
+    ├── DEPENDENCY_LIST.txt                      # List of all dependencies
+    └── README.txt                               # Deployment instructions
 ```
 
-## Step 2: Add JAR to Your Apigee Proxy
+### Dependencies NOT included (provided by Apigee Edge 4.52)
 
-### Option A: Using Apigee UI
+The following dependencies are **already available** in Apigee Edge 4.52 runtime and are NOT included in the build output:
+
+| Dependency | Version in Apigee 4.52 |
+|------------|------------------------|
+| Jackson Core/Databind/Annotations | 2.12.x |
+| Jackson Dataformat YAML | 2.12.x |
+| Guava | 30.x |
+| SLF4J API | 1.7.x |
+| Apache Commons Lang3 | 3.x |
+| Apache Commons IO | 2.x |
+| Joda-Time | 2.x |
+
+> **Important:** Do NOT upload these dependencies to Apigee to avoid version conflicts.
+
+### Optional: Build an Uber-JAR
+
+If you prefer a single JAR with all dependencies bundled (traditional approach):
+
+```bash
+mvn clean package -Puber-jar
+```
+
+This creates `target/openapi-validator-apigee-callout-1.0.0-uber.jar` with all dependencies shaded.
+
+## Step 2: Add JARs to Your Apigee Proxy
+
+### Option A: Using Apigee UI (Recommended)
 
 1. Open your API proxy in Apigee Edge/X console
 2. Go to **Develop** tab
 3. Click **+** next to **Resources**
-4. Select **JAR** and upload `openapi-validator-apigee-callout-1.0.0.jar`
+4. Select **JAR** and upload **ALL** `.jar` files from `target/apigee-resources/`
+
+> **Tip:** Upload all JARs from the `apigee-resources` folder. The callout JAR and its dependencies are all required.
 
 ### Option B: Using Proxy Bundle Structure
 
-Place the JAR in your proxy bundle:
+Copy all JARs from `target/apigee-resources/` to your proxy bundle:
+
 ```
 apiproxy/
 ├── proxies/
@@ -66,7 +107,27 @@ apiproxy/
 │   └── JavaCallout-ValidateRequest.xml
 └── resources/
     └── java/
-        └── openapi-validator-apigee-callout-1.0.0.jar
+        ├── openapi-validator-apigee-callout-1.0.0.jar
+        ├── swagger-request-validator-core-2.30.0.jar
+        ├── swagger-parser-2.1.12.jar
+        ├── snakeyaml-1.33.jar
+        └── ... (all other JARs from apigee-resources/)
+```
+
+### Option C: Using Apigee Management API
+
+Upload each JAR using the Management API:
+
+```bash
+# Script to upload all JARs from apigee-resources folder
+for jar in target/apigee-resources/*.jar; do
+  filename=$(basename "$jar")
+  curl -X POST \
+    "https://api.enterprise.apigee.com/v1/organizations/{org}/apis/{api}/revisions/{rev}/resources?type=java&name=$filename" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/octet-stream" \
+    --data-binary @"$jar"
+done
 ```
 
 ## Step 3: Store Your OpenAPI Spec
