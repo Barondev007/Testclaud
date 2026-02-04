@@ -508,8 +508,9 @@ node {
 
                         sh 'git add .'
 
+                        def timestamp = new Date().format('yyyy-MM-dd HH:mm:ss')
                         def commitResult = sh(
-                            script: "git diff-index --quiet HEAD || git commit -m 'KeyStore with new CA - ${new Date().format(\"yyyy-MM-dd HH:mm:ss\")}'",
+                            script: "git diff-index --quiet HEAD || git commit -m 'KeyStore with new CA - ${timestamp}'",
                             returnStdout: true
                         ).trim()
                         echo "Commit result: ${commitResult}"
