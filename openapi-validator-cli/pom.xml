@@ -21,14 +21,14 @@
     </properties>
 
     <dependencies>
-        <!-- BNPPF OpenAPI Validator (axway-validator) -->
+        <!-- Atlassian Swagger Request Validator Core (same as axway-validator) -->
         <dependency>
-            <groupId>be.bnppf</groupId>
-            <artifactId>openapi-validator</artifactId>
-            <version>1.0.0</version>
+            <groupId>com.atlassian.oai</groupId>
+            <artifactId>swagger-request-validator-core</artifactId>
+            <version>${swagger-request-validator.version}</version>
         </dependency>
 
-        <!-- SLF4J Simple for CLI logging (override the nop from axway-validator) -->
+        <!-- SLF4J Simple for CLI logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>

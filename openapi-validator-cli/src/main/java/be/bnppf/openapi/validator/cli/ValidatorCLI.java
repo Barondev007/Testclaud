@@ -1,8 +1,5 @@
 package be.bnppf.openapi.validator.cli;
 
-import be.bnppf.openapi.validator.BnppfOpenAPIValidator;
-import be.bnppf.openapi.validator.ValidationLevel;
-import be.bnppf.openapi.validator.ValidationResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -138,8 +135,8 @@ public class ValidatorCLI {
         long startTime = System.currentTimeMillis();
 
         try {
-            // Use BnppfOpenAPIValidator from axway-validator
-            BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(specContent, level);
+            // Use OpenApiValidator from axway-validator
+            OpenApiValidator validator = OpenApiValidator.getInstance(specContent, level);
             long elapsed = System.currentTimeMillis() - startTime;
 
             printSuccess("Specification loaded successfully!");
@@ -310,7 +307,7 @@ public class ValidatorCLI {
         String specContent = loadSpecFile(specFile);
 
         printInfo("Loading specification...");
-        BnppfOpenAPIValidator validator = BnppfOpenAPIValidator.getInstance(specContent, level);
+        OpenApiValidator validator = OpenApiValidator.getInstance(specContent, level);
 
         if (verbose) {
             validator.setDebugEnabled(true);
@@ -322,7 +319,7 @@ public class ValidatorCLI {
         // Add Content-Type header
         addToMultiMap(headers, "Content-Type", contentType);
 
-        // Validate request using BnppfOpenAPIValidator with standard Java types
+        // Validate request using OpenApiValidator with standard Java types
         printInfo("Validating request...");
         ValidationResult result = validator.validateRequest(body, method, path, queryParams, headers);
 
@@ -405,7 +402,7 @@ public class ValidatorCLI {
     }
 
     /**
-     * Print validation result from BnppfOpenAPIValidator
+     * Print validation result from OpenApiValidator
      */
     private static void printValidationResult(ValidationResult result, String type) {
         List<String> errors = result.getErrors();
