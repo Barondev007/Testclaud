@@ -31,10 +31,6 @@ public class ValidatorCLI {
 
     // ANSI Color codes
     private static final String ANSI_RESET = "\u001B[0m";
-    private static final String ANSI_BOLD = "\u001B[1m";
-    private static final String ANSI_DIM = "\u001B[2m";
-    private static final String ANSI_UNDERLINE = "\u001B[4m";
-
     // Foreground colors
     private static final String ANSI_BLACK = "\u001B[30m";
     private static final String ANSI_RED = "\u001B[31m";
@@ -173,7 +169,7 @@ public class ValidatorCLI {
         // Load and validate spec
         String specContent = loadSpecFile(specFile);
 
-        System.out.println(colorize("  " + SYM_CIRCLE + " Loading specification...", ANSI_DIM));
+        System.out.println(colorize("  " + SYM_CIRCLE + " Loading specification...", ANSI_WHITE));
 
         long startTime = System.currentTimeMillis();
 
@@ -348,7 +344,7 @@ public class ValidatorCLI {
         // Load spec and create validator
         String specContent = loadSpecFile(specFile);
 
-        System.out.println(colorize("  " + SYM_CIRCLE + " Loading specification...", ANSI_DIM));
+        System.out.println(colorize("  " + SYM_CIRCLE + " Loading specification...", ANSI_WHITE));
         OpenApiValidator validator = OpenApiValidator.getInstance(specContent, level);
 
         if (verbose) {
@@ -362,7 +358,7 @@ public class ValidatorCLI {
         addToMultiMap(headers, "Content-Type", contentType);
 
         // Validate request using OpenApiValidator with standard Java types
-        System.out.println(colorize("  " + SYM_CIRCLE + " Validating request...", ANSI_DIM));
+        System.out.println(colorize("  " + SYM_CIRCLE + " Validating request...", ANSI_WHITE));
         ValidationResult result = validator.validateRequest(body, method, path, queryParams, headers);
 
         printValidationResult(result, "Request");
@@ -375,7 +371,7 @@ public class ValidatorCLI {
             printDetail("Status Code", String.valueOf(statusCode));
             System.out.println();
 
-            System.out.println(colorize("  " + SYM_CIRCLE + " Validating response...", ANSI_DIM));
+            System.out.println(colorize("  " + SYM_CIRCLE + " Validating response...", ANSI_WHITE));
 
             String responseBody = new String(Files.readAllBytes(Paths.get(responseFile)), StandardCharsets.UTF_8);
 
@@ -460,7 +456,7 @@ public class ValidatorCLI {
         if (!errors.isEmpty()) {
             printSubHeader("Errors");
             for (int i = 0; i < errors.size(); i++) {
-                System.out.println(colorize("  " + (i + 1) + ". ", ANSI_DIM + ANSI_RED) +
+                System.out.println(colorize("  " + (i + 1) + ". ", ANSI_RED) +
                         colorize(SYM_CROSS + " ", ANSI_BRIGHT_RED) +
                         colorize(errors.get(i), ANSI_RED));
             }
@@ -470,7 +466,7 @@ public class ValidatorCLI {
         if (!warnings.isEmpty()) {
             printSubHeader("Warnings");
             for (int i = 0; i < warnings.size(); i++) {
-                System.out.println(colorize("  " + (i + 1) + ". ", ANSI_DIM + ANSI_YELLOW) +
+                System.out.println(colorize("  " + (i + 1) + ". ", ANSI_YELLOW) +
                         colorize(SYM_WARN + " ", ANSI_BRIGHT_YELLOW) +
                         colorize(warnings.get(i), ANSI_YELLOW));
             }
@@ -480,7 +476,7 @@ public class ValidatorCLI {
         if (verbose && !infos.isEmpty()) {
             printSubHeader("Info");
             for (int i = 0; i < infos.size(); i++) {
-                System.out.println(colorize("  " + (i + 1) + ". ", ANSI_DIM + ANSI_CYAN) +
+                System.out.println(colorize("  " + (i + 1) + ". ", ANSI_CYAN) +
                         colorize(SYM_INFO + " ", ANSI_BRIGHT_CYAN) +
                         colorize(infos.get(i), ANSI_CYAN));
             }
@@ -489,7 +485,7 @@ public class ValidatorCLI {
         // Print debug info if available
         if (verbose && result.getDebugInfo() != null && !result.getDebugInfo().isEmpty()) {
             printSubHeader("Debug Info");
-            System.out.println(colorize(result.getDebugInfo(), ANSI_DIM));
+            System.out.println(colorize(result.getDebugInfo(), ANSI_WHITE));
         }
 
         // Print the summary bar
@@ -543,7 +539,7 @@ public class ValidatorCLI {
 
                 if (verbose) {
                     System.out.println();
-                    System.out.println(colorize("  Available endpoints:", ANSI_WHITE + ANSI_BOLD));
+                    System.out.println(colorize("  Available endpoints:", ANSI_WHITE));
                     Iterator<String> paths = root.get("paths").fieldNames();
                     while (paths.hasNext()) {
                         String path = paths.next();
@@ -562,7 +558,7 @@ public class ValidatorCLI {
                             if (i > 0) methodStr.append(" ");
                             methodStr.append(colorizeMethod(methods.get(i)));
                         }
-                        System.out.println(colorize("    " + SYM_CIRCLE + " ", ANSI_DIM) +
+                        System.out.println(colorize("    " + SYM_CIRCLE + " ", ANSI_WHITE) +
                                 colorize(path, ANSI_CYAN) + " " + methodStr);
                     }
                 }
@@ -643,15 +639,15 @@ public class ValidatorCLI {
         String line = repeatString(BOX_H, width - 2);
         System.out.println();
         System.out.println(colorize(BOX_TL + line + BOX_TR, ANSI_BRIGHT_CYAN));
-        System.out.println(colorize(BOX_V + " " + ANSI_BOLD + centerText(text, width - 4) + " " + ANSI_BRIGHT_CYAN + BOX_V, ANSI_BRIGHT_CYAN));
+        System.out.println(colorize(BOX_V + " " + centerText(text, width - 4) + " " + BOX_V, ANSI_BRIGHT_CYAN));
         System.out.println(colorize(BOX_BL + line + BOX_BR, ANSI_BRIGHT_CYAN));
         System.out.println();
     }
 
     private static void printSubHeader(String text) {
         System.out.println();
-        System.out.println(colorize(ANSI_BOLD + SYM_ARROW + " " + text, ANSI_BRIGHT_BLUE));
-        System.out.println(colorize(repeatString(BOX_H, text.length() + 3), ANSI_DIM + ANSI_BLUE));
+        System.out.println(colorize(SYM_ARROW + " " + text, ANSI_BRIGHT_BLUE));
+        System.out.println(colorize(repeatString(BOX_H, text.length() + 3), ANSI_BLUE));
     }
 
     private static String centerText(String text, int width) {
@@ -677,7 +673,7 @@ public class ValidatorCLI {
     }
 
     private static void printDetail(String label, String value) {
-        System.out.println(colorize("  " + SYM_BULLET + " ", ANSI_DIM) +
+        System.out.println(colorize("  " + SYM_BULLET + " ", ANSI_WHITE) +
                 colorize(label + ": ", ANSI_WHITE) +
                 colorize(value, ANSI_BRIGHT_CYAN));
     }
@@ -691,19 +687,19 @@ public class ValidatorCLI {
             // Red failure bar
             System.out.println(colorize(BOX_TL + line + BOX_TR, ANSI_RED));
             System.out.println(colorize(BOX_V, ANSI_RED) +
-                    colorize(ANSI_BOLD + centerText(SYM_CROSS + " VALIDATION FAILED", width - 4), ANSI_BRIGHT_RED) +
+                    colorize(centerText(SYM_CROSS + " VALIDATION FAILED", width - 4), ANSI_BRIGHT_RED) +
                     colorize(BOX_V, ANSI_RED));
         } else if (errors == 0 && warnings == 0) {
             // Green success bar
             System.out.println(colorize(BOX_TL + line + BOX_TR, ANSI_GREEN));
             System.out.println(colorize(BOX_V, ANSI_GREEN) +
-                    colorize(ANSI_BOLD + centerText(SYM_CHECK + " VALIDATION PASSED", width - 4), ANSI_BRIGHT_GREEN) +
+                    colorize(centerText(SYM_CHECK + " VALIDATION PASSED", width - 4), ANSI_BRIGHT_GREEN) +
                     colorize(BOX_V, ANSI_GREEN));
         } else {
             // Yellow warning bar
             System.out.println(colorize(BOX_TL + line + BOX_TR, ANSI_YELLOW));
             System.out.println(colorize(BOX_V, ANSI_YELLOW) +
-                    colorize(ANSI_BOLD + centerText(SYM_WARN + " PASSED WITH WARNINGS", width - 4), ANSI_BRIGHT_YELLOW) +
+                    colorize(centerText(SYM_WARN + " PASSED WITH WARNINGS", width - 4), ANSI_BRIGHT_YELLOW) +
                     colorize(BOX_V, ANSI_YELLOW));
         }
 
@@ -711,11 +707,11 @@ public class ValidatorCLI {
         String stats = String.format("%d errors  %s  %d warnings  %s  %d info",
                 errors, SYM_BULLET, warnings, SYM_BULLET, infos);
         String coloredStats =
-                colorize(String.valueOf(errors) + " errors", errors > 0 ? ANSI_BRIGHT_RED : ANSI_DIM) + "  " +
-                        colorize(SYM_BULLET, ANSI_DIM) + "  " +
-                        colorize(String.valueOf(warnings) + " warnings", warnings > 0 ? ANSI_BRIGHT_YELLOW : ANSI_DIM) + "  " +
-                        colorize(SYM_BULLET, ANSI_DIM) + "  " +
-                        colorize(String.valueOf(infos) + " info", ANSI_DIM);
+                colorize(errors + " errors", errors > 0 ? ANSI_BRIGHT_RED : ANSI_WHITE) + "  " +
+                        colorize(SYM_BULLET, ANSI_WHITE) + "  " +
+                        colorize(warnings + " warnings", warnings > 0 ? ANSI_BRIGHT_YELLOW : ANSI_WHITE) + "  " +
+                        colorize(SYM_BULLET, ANSI_WHITE) + "  " +
+                        colorize(infos + " info", ANSI_WHITE);
 
         // Calculate padding for centering (approximate since we have color codes)
         int statsLen = stats.length();
@@ -732,21 +728,21 @@ public class ValidatorCLI {
     }
 
     private static void printVersion() {
-        System.out.println(colorize(ANSI_BOLD + "OpenAPI Validator CLI", ANSI_BRIGHT_CYAN) +
+        System.out.println(colorize("OpenAPI Validator CLI", ANSI_BRIGHT_CYAN) +
                 colorize(" v" + VERSION, ANSI_WHITE));
-        System.out.println(colorize("Using BNPPF OpenAPI Validator Library", ANSI_DIM));
+        System.out.println(colorize("Using BNPPF OpenAPI Validator Library", ANSI_WHITE));
     }
 
     private static void printValidateUsage() {
         System.out.println();
-        System.out.println(colorize(ANSI_BOLD + "VALIDATE USAGE", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("VALIDATE USAGE", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
         System.out.println("  " + colorize("validate", ANSI_BRIGHT_GREEN) +
                 colorize(" --spec <file> --method <METHOD> --path <path>", ANSI_CYAN));
         System.out.println();
 
-        System.out.println(colorize(ANSI_BOLD + "OPTIONS", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("OPTIONS", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
 
         printValidateOption("--spec, -s", "<file>", "OpenAPI specification file (JSON/YAML)");
         printValidateOption("--method, -m", "<method>", "HTTP method (GET, POST, PUT, DELETE)");
@@ -766,7 +762,7 @@ public class ValidatorCLI {
     private static void printValidateOption(String flag, String arg, String desc) {
         System.out.println("  " + colorize(flag, ANSI_BRIGHT_MAGENTA) + " " +
                 colorize(arg, ANSI_CYAN));
-        System.out.println("      " + colorize(desc, ANSI_DIM));
+        System.out.println("      " + colorize(desc, ANSI_WHITE));
     }
 
     private static void printHelp() {
@@ -782,21 +778,21 @@ public class ValidatorCLI {
         System.out.println(colorize(BOX_BL + bannerLine + BOX_BR, ANSI_BRIGHT_CYAN));
 
         System.out.println();
-        System.out.println(colorize("  A tool for testing OpenAPI specifications and validating API requests.", ANSI_DIM));
-        System.out.println(colorize("  Using BNPPF OpenAPI Validator Library", ANSI_DIM));
+        System.out.println(colorize("  A tool for testing OpenAPI specifications and validating API requests.", ANSI_WHITE));
+        System.out.println(colorize("  Using BNPPF OpenAPI Validator Library", ANSI_WHITE));
         System.out.println();
 
         // Usage
-        System.out.println(colorize(ANSI_BOLD + "USAGE", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("USAGE", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
         System.out.println("  " + colorize("openapi-validator", ANSI_BRIGHT_GREEN) +
                 colorize(" <command> ", ANSI_CYAN) +
-                colorize("[options]", ANSI_DIM));
+                colorize("[options]", ANSI_WHITE));
         System.out.println();
 
         // Commands
-        System.out.println(colorize(ANSI_BOLD + "COMMANDS", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("COMMANDS", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
         printHelpCommand("check", "<spec-file>", "Check if a specification loads correctly");
         printHelpCommand("validate", "[options]", "Validate a request against a specification");
         printHelpCommand("help", "", "Show this help message");
@@ -804,15 +800,15 @@ public class ValidatorCLI {
         System.out.println();
 
         // Global Options
-        System.out.println(colorize(ANSI_BOLD + "GLOBAL OPTIONS", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("GLOBAL OPTIONS", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
         printHelpOption("--no-color", "Disable colored output");
         printHelpOption("-v, --verbose", "Enable verbose output and debug info");
         System.out.println();
 
         // Validation Levels
-        System.out.println(colorize(ANSI_BOLD + "VALIDATION LEVELS", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("VALIDATION LEVELS", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
         System.out.println("  " + colorize(SYM_BULLET + " STRICT  ", ANSI_BRIGHT_RED) +
                 colorize("Enforce all specification rules strictly", ANSI_WHITE));
         System.out.println("  " + colorize(SYM_BULLET + " LENIENT ", ANSI_BRIGHT_YELLOW) +
@@ -822,8 +818,8 @@ public class ValidatorCLI {
         System.out.println();
 
         // Examples
-        System.out.println(colorize(ANSI_BOLD + "EXAMPLES", ANSI_BRIGHT_YELLOW));
-        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_DIM));
+        System.out.println(colorize("EXAMPLES", ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(repeatString(BOX_H, 50), ANSI_WHITE));
         System.out.println();
 
         printExample("Check if a specification is valid",
@@ -847,18 +843,18 @@ public class ValidatorCLI {
     private static void printHelpCommand(String cmd, String args, String desc) {
         System.out.println("  " + colorize(cmd, ANSI_BRIGHT_GREEN) +
                 (args.isEmpty() ? "" : " " + colorize(args, ANSI_CYAN)) +
-                "\n      " + colorize(desc, ANSI_DIM));
+                "\n      " + colorize(desc, ANSI_WHITE));
     }
 
     private static void printHelpOption(String option, String desc) {
         System.out.println("  " + colorize(option, ANSI_BRIGHT_MAGENTA) +
-                "\n      " + colorize(desc, ANSI_DIM));
+                "\n      " + colorize(desc, ANSI_WHITE));
     }
 
     private static void printExample(String title, String command) {
         System.out.println(colorize("  " + SYM_ARROW + " " + title, ANSI_WHITE));
         for (String line : command.split("\n")) {
-            System.out.println(colorize("    $ " + line, ANSI_DIM + ANSI_GREEN));
+            System.out.println(colorize("    $ " + line, ANSI_GREEN));
         }
         System.out.println();
     }
