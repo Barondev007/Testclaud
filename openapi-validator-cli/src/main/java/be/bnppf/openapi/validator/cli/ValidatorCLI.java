@@ -661,15 +661,15 @@ public class ValidatorCLI {
     }
 
     private static void printSuccess(String text) {
-        System.out.println(colorize(ANSI_BOLD + SYM_CHECK + ANSI_RESET + ANSI_BRIGHT_GREEN + " " + text, ANSI_BRIGHT_GREEN));
+        System.out.println(colorize(SYM_CHECK + " " + text, ANSI_BRIGHT_GREEN));
     }
 
     private static void printError(String text) {
-        System.out.println(colorize(ANSI_BOLD + SYM_CROSS + ANSI_RESET + ANSI_BRIGHT_RED + " " + text, ANSI_BRIGHT_RED));
+        System.out.println(colorize(SYM_CROSS + " " + text, ANSI_BRIGHT_RED));
     }
 
     private static void printWarning(String text) {
-        System.out.println(colorize(ANSI_BOLD + SYM_WARN + ANSI_RESET + ANSI_BRIGHT_YELLOW + " " + text, ANSI_BRIGHT_YELLOW));
+        System.out.println(colorize(SYM_WARN + " " + text, ANSI_BRIGHT_YELLOW));
     }
 
     private static void printInfo(String text) {
