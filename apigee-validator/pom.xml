@@ -144,9 +144,41 @@
                             <relocations>
                                 <!--
                                     APIGEE-SPECIFIC RELOCATIONS
-                                    All dependencies are relocated to avoid conflicts with Apigee's bundled libraries
+                                    ALL dependencies must be relocated to avoid conflicts with Apigee runtime
                                 -->
 
+                                <!-- ===== GOOGLE PACKAGES ===== -->
+                                <!-- Relocate ALL com.google packages -->
+                                <relocation>
+                                    <pattern>com.google</pattern>
+                                    <shadedPattern>apigee.shaded.com.google</shadedPattern>
+                                </relocation>
+
+                                <!-- ===== JAVAX PACKAGES ===== -->
+                                <!-- Relocate javax.validation -->
+                                <relocation>
+                                    <pattern>javax.validation</pattern>
+                                    <shadedPattern>apigee.shaded.javax.validation</shadedPattern>
+                                </relocation>
+                                <!-- Relocate javax.inject -->
+                                <relocation>
+                                    <pattern>javax.inject</pattern>
+                                    <shadedPattern>apigee.shaded.javax.inject</shadedPattern>
+                                </relocation>
+                                <!-- Relocate javax.mail -->
+                                <relocation>
+                                    <pattern>javax.mail</pattern>
+                                    <shadedPattern>apigee.shaded.javax.mail</shadedPattern>
+                                </relocation>
+
+                                <!-- ===== APACHE PACKAGES ===== -->
+                                <!-- Relocate ALL org.apache packages -->
+                                <relocation>
+                                    <pattern>org.apache</pattern>
+                                    <shadedPattern>apigee.shaded.org.apache</shadedPattern>
+                                </relocation>
+
+                                <!-- ===== CORE DEPENDENCIES ===== -->
                                 <!-- Relocate Atlassian OAI Validator -->
                                 <relocation>
                                     <pattern>com.atlassian.oai</pattern>
@@ -177,19 +209,8 @@
                                     <shadedPattern>apigee.shaded.io.swagger</shadedPattern>
                                 </relocation>
 
-                                <!-- Relocate Apache Commons -->
-                                <relocation>
-                                    <pattern>org.apache.commons</pattern>
-                                    <shadedPattern>apigee.shaded.org.apache.commons</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate Google libraries (but not Guava - excluded) -->
-                                <relocation>
-                                    <pattern>com.google.common</pattern>
-                                    <shadedPattern>apigee.shaded.com.google.common</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate JSON Schema Validator -->
+                                <!-- ===== JSON SCHEMA VALIDATORS ===== -->
+                                <!-- Relocate JSON Schema Validator (networknt) -->
                                 <relocation>
                                     <pattern>com.networknt</pattern>
                                     <shadedPattern>apigee.shaded.com.networknt</shadedPattern>
@@ -207,22 +228,35 @@
                                     <shadedPattern>apigee.shaded.com.ethlo</shadedPattern>
                                 </relocation>
 
-                                <!-- Relocate javax.validation -->
-                                <relocation>
-                                    <pattern>javax.validation</pattern>
-                                    <shadedPattern>apigee.shaded.javax.validation</shadedPattern>
-                                </relocation>
-
+                                <!-- ===== OTHER DEPENDENCIES ===== -->
                                 <!-- Relocate Joda Time -->
                                 <relocation>
                                     <pattern>org.joda</pattern>
                                     <shadedPattern>apigee.shaded.org.joda</shadedPattern>
                                 </relocation>
 
-                                <!-- Relocate Mozilla Rhino (if present) - Apigee uses Rhino -->
+                                <!-- Relocate Mozilla Rhino -->
                                 <relocation>
                                     <pattern>org.mozilla</pattern>
                                     <shadedPattern>apigee.shaded.org.mozilla</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate JONI (regex library) -->
+                                <relocation>
+                                    <pattern>org.joni</pattern>
+                                    <shadedPattern>apigee.shaded.org.joni</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate JCodings -->
+                                <relocation>
+                                    <pattern>org.jcodings</pattern>
+                                    <shadedPattern>apigee.shaded.org.jcodings</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Checker Framework -->
+                                <relocation>
+                                    <pattern>org.checkerframework</pattern>
+                                    <shadedPattern>apigee.shaded.org.checkerframework</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
