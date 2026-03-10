@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>be.bnppf</groupId>
+    <artifactId>openapi-validator-apigee</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>BNPPF OpenAPI Validator for Apigee</name>
+    <description>OpenAPI Request/Response Validator optimized for Google Apigee</description>
+
+    <properties>
+        <!-- Java 8 for Apigee compatibility -->
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <swagger-request-validator.version>2.30.0</swagger-request-validator.version>
+    </properties>
+
+    <dependencies>
+        <!-- Atlassian Swagger Request Validator Core -->
+        <dependency>
+            <groupId>com.atlassian.oai</groupId>
+            <artifactId>swagger-request-validator-core</artifactId>
+            <version>${swagger-request-validator.version}</version>
+            <exclusions>
+                <!-- Exclude SLF4J - Apigee has its own logging -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <!-- Exclude Guava - Apigee bundles its own version -->
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- SLF4J NOP - silent logging to avoid conflicts -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
+            </plugin>
+
+            <!-- Shade plugin optimized for Apigee -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <minimizeJar>true</minimizeJar>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>be.bnppf.openapi.validator.apigee.ApigeeOpenApiValidator</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                        <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <!-- Exclude test classes -->
+                                        <exclude>**/test/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <relocations>
+                                <!--
+                                    APIGEE-SPECIFIC RELOCATIONS
+                                    All dependencies are relocated to avoid conflicts with Apigee's bundled libraries
+                                -->
+
+                                <!-- Relocate Atlassian OAI Validator -->
+                                <relocation>
+                                    <pattern>com.atlassian.oai</pattern>
+                                    <shadedPattern>apigee.shaded.com.atlassian.oai</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Jackson - CRITICAL: Apigee has older Jackson -->
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>apigee.shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate SnakeYAML -->
+                                <relocation>
+                                    <pattern>org.yaml.snakeyaml</pattern>
+                                    <shadedPattern>apigee.shaded.org.yaml.snakeyaml</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate SLF4J -->
+                                <relocation>
+                                    <pattern>org.slf4j</pattern>
+                                    <shadedPattern>apigee.shaded.org.slf4j</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Swagger Parser -->
+                                <relocation>
+                                    <pattern>io.swagger</pattern>
+                                    <shadedPattern>apigee.shaded.io.swagger</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Apache Commons -->
+                                <relocation>
+                                    <pattern>org.apache.commons</pattern>
+                                    <shadedPattern>apigee.shaded.org.apache.commons</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Google libraries (but not Guava - excluded) -->
+                                <relocation>
+                                    <pattern>com.google.common</pattern>
+                                    <shadedPattern>apigee.shaded.com.google.common</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate JSON Schema Validator -->
+                                <relocation>
+                                    <pattern>com.networknt</pattern>
+                                    <shadedPattern>apigee.shaded.com.networknt</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate FGE JSON Schema -->
+                                <relocation>
+                                    <pattern>com.github.fge</pattern>
+                                    <shadedPattern>apigee.shaded.com.github.fge</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Ethlo time -->
+                                <relocation>
+                                    <pattern>com.ethlo</pattern>
+                                    <shadedPattern>apigee.shaded.com.ethlo</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate javax.validation -->
+                                <relocation>
+                                    <pattern>javax.validation</pattern>
+                                    <shadedPattern>apigee.shaded.javax.validation</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Joda Time -->
+                                <relocation>
+                                    <pattern>org.joda</pattern>
+                                    <shadedPattern>apigee.shaded.org.joda</shadedPattern>
+                                </relocation>
+
+                                <!-- Relocate Mozilla Rhino (if present) - Apigee uses Rhino -->
+                                <relocation>
+                                    <pattern>org.mozilla</pattern>
+                                    <shadedPattern>apigee.shaded.org.mozilla</shadedPattern>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.2</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
