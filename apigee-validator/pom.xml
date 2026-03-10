@@ -107,12 +107,19 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <minimizeJar>true</minimizeJar>
+                            <!-- Disable minimizeJar - it breaks dynamic class loading -->
+                            <minimizeJar>false</minimizeJar>
+                            <!-- Handle duplicate entries -->
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>be.bnppf.openapi.validator.apigee.ApigeeOpenApiValidator</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>false</Multi-Release>
+                                    </manifestEntries>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
                             </transformers>
                             <filters>
                                 <filter>
