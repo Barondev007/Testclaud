@@ -17,7 +17,8 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <swagger-request-validator.version>2.30.0</swagger-request-validator.version>
+        <!-- Use older version for better compatibility -->
+        <swagger-request-validator.version>2.19.4</swagger-request-validator.version>
     </properties>
 
     <dependencies>
@@ -30,26 +31,46 @@
                 <!-- Exclude SLF4J - Apigee has its own logging -->
                 <exclusion>
                     <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
+                    <artifactId>*</artifactId>
                 </exclusion>
                 <!-- Exclude Guava - Apigee bundles its own version -->
                 <exclusion>
                     <groupId>com.google.guava</groupId>
                     <artifactId>guava</artifactId>
                 </exclusion>
+                <!-- Exclude findbugs annotations -->
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude javax.annotation - Apigee has it -->
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude error_prone -->
+                <exclusion>
+                    <groupId>com.google.errorprone</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude j2objc -->
+                <exclusion>
+                    <groupId>com.google.j2objc</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
-        <!-- SLF4J NOP - silent logging to avoid conflicts -->
+        <!-- SLF4J NOP - silent logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.36</version>
+            <version>1.7.32</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-nop</artifactId>
-            <version>1.7.36</version>
+            <version>1.7.32</version>
         </dependency>
 
         <!-- Test dependencies -->
@@ -97,15 +118,26 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
+                                        <!-- Security signatures -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
                                         <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <!-- Legal files -->
                                         <exclude>META-INF/LICENSE*</exclude>
                                         <exclude>META-INF/NOTICE*</exclude>
                                         <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <exclude>META-INF/AL2.0</exclude>
+                                        <exclude>META-INF/LGPL2.1</exclude>
+                                        <!-- Maven/build files -->
+                                        <exclude>META-INF/maven/**</exclude>
+                                        <exclude>META-INF/versions/**</exclude>
+                                        <!-- Module info (Java 9+) - not needed for Java 8 -->
+                                        <exclude>module-info.class</exclude>
                                         <!-- Exclude test classes -->
                                         <exclude>**/test/**</exclude>
+                                        <!-- Annotation processors not needed at runtime -->
+                                        <exclude>META-INF/services/javax.annotation.processing.Processor</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
