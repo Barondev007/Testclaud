@@ -5,12 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>be.bnppf</groupId>
-    <artifactId>openapi-validator-apigee</artifactId>
+    <!-- Simple name without hyphens for Edge compatibility -->
+    <artifactId>openapivalidator</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>BNPPF OpenAPI Validator for Apigee</name>
-    <description>OpenAPI Request/Response Validator optimized for Google Apigee</description>
+    <name>BNPPF OpenAPI Validator for Apigee Edge</name>
+    <description>OpenAPI Request/Response Validator optimized for Apigee Edge</description>
 
     <properties>
         <!-- Java 8 for Apigee compatibility -->
@@ -109,26 +110,21 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <!-- Disable minimizeJar - it breaks dynamic class loading -->
                             <minimizeJar>false</minimizeJar>
-                            <!-- Handle duplicate entries -->
+                            <!-- Minimal transformers for Edge compatibility -->
                             <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>be.bnppf.openapi.validator.apigee.ApigeeOpenApiValidator</mainClass>
-                                    <manifestEntries>
-                                        <Multi-Release>false</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
+                                <!-- Simple manifest without mainClass (library JAR) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
                             </transformers>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
-                                        <!-- Security signatures -->
+                                        <!-- Security signatures - CRITICAL for Edge -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/*.EC</exclude>
                                         <exclude>META-INF/MANIFEST.MF</exclude>
                                         <!-- Legal files -->
                                         <exclude>META-INF/LICENSE*</exclude>
@@ -138,13 +134,25 @@
                                         <exclude>META-INF/LGPL2.1</exclude>
                                         <!-- Maven/build files -->
                                         <exclude>META-INF/maven/**</exclude>
+                                        <!-- Java 9+ Multi-Release JARs - Edge doesn't support -->
                                         <exclude>META-INF/versions/**</exclude>
-                                        <!-- Module info (Java 9+) - not needed for Java 8 -->
+                                        <!-- Module info (Java 9+) -->
                                         <exclude>module-info.class</exclude>
+                                        <exclude>**/module-info.class</exclude>
                                         <!-- Exclude test classes -->
                                         <exclude>**/test/**</exclude>
-                                        <!-- Annotation processors not needed at runtime -->
+                                        <!-- Annotation processors -->
                                         <exclude>META-INF/services/javax.annotation.processing.Processor</exclude>
+                                        <!-- Native libraries - Edge won't use them -->
+                                        <exclude>**/*.so</exclude>
+                                        <exclude>**/*.dll</exclude>
+                                        <exclude>**/*.dylib</exclude>
+                                        <!-- Proguard/R8 files -->
+                                        <exclude>META-INF/proguard/**</exclude>
+                                        <!-- Kotlin metadata -->
+                                        <exclude>META-INF/*.kotlin_module</exclude>
+                                        <!-- Spring files (not needed) -->
+                                        <exclude>META-INF/spring.*</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
