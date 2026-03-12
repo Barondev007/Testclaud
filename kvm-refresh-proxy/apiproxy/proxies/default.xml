@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ProxyEndpoint name="default">
+    <Description>KVM Refresh Endpoint for Apigee Edge</Description>
+
+    <PreFlow name="PreFlow">
+        <Request>
+            <!-- API Key verification for security -->
+            <Step>
+                <Name>VerifyAPIKey</Name>
+            </Step>
+            <!-- Get Management API credentials from secure KVM -->
+            <Step>
+                <Name>KVM-GetMgmtCredentials</Name>
+            </Step>
+        </Request>
+        <Response/>
+    </PreFlow>
+
+    <Flows>
+        <!-- POST /refresh - Refresh a specific KVM entry or entire KVM -->
+        <Flow name="RefreshKVM">
+            <Description>Refresh KVM cache by re-reading and re-writing entries</Description>
+            <Request>
+                <!-- Extract parameters from request body -->
+                <Step>
+                    <Name>ExtractKVMParams</Name>
+                </Step>
+                <!-- Validate required parameters -->
+                <Step>
+                    <Name>RaiseFault-MissingParams</Name>
+                    <Condition>(extracted.kvm.mapName = null OR extracted.kvm.mapName = "") AND (request.queryparam.kvmName = null OR request.queryparam.kvmName = "")</Condition>
+                </Step>
+                <!-- Build Management API URL -->
+                <Step>
+                    <Name>JS-BuildMgmtRequest</Name>
+                </Step>
+                <!-- Call Management API to GET current value -->
+                <Step>
+                    <Name>SC-GetKVMEntry</Name>
+                </Step>
+                <!-- Parse response and prepare PUT -->
+                <Step>
+                    <Name>JS-ParseAndBuildPut</Name>
+                </Step>
+                <!-- PUT the value back (invalidates cache) -->
+                <Step>
+                    <Name>SC-PutKVMEntry</Name>
+                    <Condition>kvm.refreshStatus = "ready"</Condition>
+                </Step>
+            </Request>
+            <Response>
+                <Step>
+                    <Name>JS-BuildResponse</Name>
+                </Step>
+            </Response>
+            <Condition>(proxy.pathsuffix MatchesPath "/refresh") and (request.verb = "POST")</Condition>
+        </Flow>
+
+        <!-- GET /health - Health check -->
+        <Flow name="HealthCheck">
+            <Request/>
+            <Response>
+                <Step>
+                    <Name>AM-HealthResponse</Name>
+                </Step>
+            </Response>
+            <Condition>(proxy.pathsuffix MatchesPath "/health") and (request.verb = "GET")</Condition>
+        </Flow>
+    </Flows>
+
+    <PostFlow name="PostFlow">
+        <Request/>
+        <Response/>
+    </PostFlow>
+
+    <!-- Fault Rules -->
+    <FaultRules>
+        <FaultRule name="InvalidAPIKey">
+            <Step>
+                <Name>AM-InvalidAPIKeyResponse</Name>
+            </Step>
+            <Condition>(fault.name = "FailedToResolveAPIKey") or (fault.name = "InvalidApiKey")</Condition>
+        </FaultRule>
+    </FaultRules>
+
+    <DefaultFaultRule name="DefaultFault">
+        <Step>
+            <Name>AM-GenericFaultResponse</Name>
+        </Step>
+        <AlwaysEnforce>true</AlwaysEnforce>
+    </DefaultFaultRule>
+
+    <HTTPProxyConnection>
+        <BasePath>/kvm-refresh</BasePath>
+        <VirtualHost>secure</VirtualHost>
+    </HTTPProxyConnection>
+
+    <RouteRule name="noroute"/>
+</ProxyEndpoint>

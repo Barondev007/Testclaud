@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ExtractVariables async="false" continueOnError="false" enabled="true" name="ExtractKVMParams">
+    <DisplayName>Extract KVM Parameters</DisplayName>
+    <Properties/>
+    <Source>request</Source>
+    <JSONPayload>
+        <!-- KVM map name (required) -->
+        <Variable name="kvm.mapName">
+            <JSONPath>$.kvmName</JSONPath>
+        </Variable>
+        <!-- Optional: specific key to refresh (if not provided, uses a marker key) -->
+        <Variable name="kvm.keyName">
+            <JSONPath>$.keyName</JSONPath>
+        </Variable>
+        <!-- Optional: scope - environment (default) or organization -->
+        <Variable name="kvm.scope">
+            <JSONPath>$.scope</JSONPath>
+        </Variable>
+    </JSONPayload>
+    <VariablePrefix>extracted</VariablePrefix>
+</ExtractVariables>

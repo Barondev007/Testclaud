@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ServiceCallout async="false" continueOnError="false" enabled="true" name="SC-PutKVMEntry">
+    <DisplayName>ServiceCallout - PUT KVM Entry (Invalidate Cache)</DisplayName>
+    <Properties/>
+    <Request clearPayload="true" variable="mgmtPutRequest">
+        <IgnoreUnresolvedVariables>false</IgnoreUnresolvedVariables>
+        <Set>
+            <Headers>
+                <Header name="Authorization">{private.mgmt.authorization}</Header>
+                <Header name="Content-Type">application/json</Header>
+            </Headers>
+            <Payload contentType="application/json">{kvm.putPayload}</Payload>
+            <Verb>PUT</Verb>
+        </Set>
+    </Request>
+    <Response>mgmtPutResponse</Response>
+    <HTTPTargetConnection>
+        <Properties/>
+        <URL>{kvm.mgmtApiUrl}</URL>
+    </HTTPTargetConnection>
+</ServiceCallout>

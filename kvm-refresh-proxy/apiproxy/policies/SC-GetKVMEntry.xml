@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ServiceCallout async="false" continueOnError="false" enabled="true" name="SC-GetKVMEntry">
+    <DisplayName>ServiceCallout - Get KVM Entry</DisplayName>
+    <Properties/>
+    <Request clearPayload="true" variable="mgmtApiRequest">
+        <IgnoreUnresolvedVariables>false</IgnoreUnresolvedVariables>
+        <Set>
+            <Headers>
+                <Header name="Authorization">{private.mgmt.authorization}</Header>
+                <Header name="Content-Type">application/json</Header>
+            </Headers>
+            <Verb>GET</Verb>
+        </Set>
+    </Request>
+    <Response>mgmtApiResponse</Response>
+    <HTTPTargetConnection>
+        <Properties/>
+        <URL>{kvm.mgmtApiUrl}</URL>
+    </HTTPTargetConnection>
+</ServiceCallout>

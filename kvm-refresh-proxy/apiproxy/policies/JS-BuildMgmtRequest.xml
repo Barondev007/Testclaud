@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Javascript async="false" continueOnError="false" enabled="true" timeLimit="5000" name="JS-BuildMgmtRequest">
+    <DisplayName>JS - Build Management API Request</DisplayName>
+    <Properties/>
+    <ResourceURL>jsc://refreshKVM.js</ResourceURL>
+</Javascript>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault async="false" continueOnError="false" enabled="true" name="RaiseFault-MissingParams">
+    <DisplayName>RaiseFault - Missing Parameters</DisplayName>
+    <Properties/>
+    <FaultResponse>
+        <Set>
+            <Headers>
+                <Header name="Content-Type">application/json</Header>
+            </Headers>
+            <Payload contentType="application/json">
+{
+    "error": "missing_parameters",
+    "message": "Required parameter 'kvmName' is missing. Provide it in the request body as JSON or as a query parameter.",
+    "usage": {
+        "endpoint": "POST /kvm-refresh/refresh",
+        "body": {
+            "kvmName": "your-kvm-name",
+            "keyName": "optional-specific-key",
+            "scope": "environment|organization"
+        }
+    }
+}
+            </Payload>
+            <StatusCode>400</StatusCode>
+            <ReasonPhrase>Bad Request</ReasonPhrase>
+        </Set>
+    </FaultResponse>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</RaiseFault>

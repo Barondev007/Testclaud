@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Javascript async="false" continueOnError="false" enabled="true" timeLimit="5000" name="JS-ParseAndBuildPut">
+    <DisplayName>JS - Parse Response and Build PUT</DisplayName>
+    <Properties/>
+    <ResourceURL>jsc://buildPutRequest.js</ResourceURL>
+</Javascript>

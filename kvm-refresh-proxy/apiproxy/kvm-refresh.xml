@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="kvm-refresh">
+    <DisplayName>KVM Cache Refresh API</DisplayName>
+    <Description>API to refresh KVM cache entries for CI/CD pipelines - Apigee Edge</Description>
+    <CreatedAt>1710249600000</CreatedAt>
+    <LastModifiedAt>1710249600000</LastModifiedAt>
+    <Basepaths>/kvm-refresh</Basepaths>
+    <ConfigurationVersion majorVersion="4" minorVersion="0"/>
+    <Policies>
+        <Policy>VerifyAPIKey</Policy>
+        <Policy>KVM-GetMgmtCredentials</Policy>
+        <Policy>ExtractKVMParams</Policy>
+        <Policy>JS-BuildMgmtRequest</Policy>
+        <Policy>SC-GetKVMEntry</Policy>
+        <Policy>JS-ParseAndBuildPut</Policy>
+        <Policy>SC-PutKVMEntry</Policy>
+        <Policy>JS-BuildResponse</Policy>
+        <Policy>RaiseFault-MissingParams</Policy>
+        <Policy>AM-HealthResponse</Policy>
+        <Policy>AM-InvalidAPIKeyResponse</Policy>
+        <Policy>AM-GenericFaultResponse</Policy>
+    </Policies>
+    <ProxyEndpoints>
+        <ProxyEndpoint>default</ProxyEndpoint>
+    </ProxyEndpoints>
+    <Resources>
+        <Resource>jsc://refreshKVM.js</Resource>
+        <Resource>jsc://buildPutRequest.js</Resource>
+        <Resource>jsc://buildResponse.js</Resource>
+    </Resources>
+</APIProxy>
