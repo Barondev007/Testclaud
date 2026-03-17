@@ -9,8 +9,7 @@
         <Request/>
         <Response/>
     </PostFlow>
-    <HTTPTargetConnection>
-        <!-- Overridden dynamically by target.url in AM-SetLocalTarget -->
-        <URL>http://localhost</URL>
-    </HTTPTargetConnection>
+    <LocalTargetConnection>
+        <Path>{private.targetProxyBasePath}</Path>
+    </LocalTargetConnection>
 </TargetEndpoint>

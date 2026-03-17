@@ -11,6 +11,5 @@
     </TargetEndpoints>
     <Policies>
         <Policy>FC-ProxyRouter</Policy>
-        <Policy>AM-SetLocalTarget</Policy>
     </Policies>
 </APIProxy>
