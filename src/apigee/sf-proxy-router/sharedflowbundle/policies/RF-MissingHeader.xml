@@ -5,7 +5,7 @@
         <Set>
             <StatusCode>400</StatusCode>
             <ReasonPhrase>Bad Request</ReasonPhrase>
-            <Payload contentType="application/json">{"error":"Missing required header X-Route-To"}</Payload>
+            <Payload contentType="application/json">{"error":"Missing required routing header"}</Payload>
         </Set>
     </FaultResponse>
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>

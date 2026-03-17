@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<FlowCallout name="FC-ProxyRouter">
+    <DisplayName>FC - Proxy Router</DisplayName>
+    <SharedFlowBundle>sf-proxy-router</SharedFlowBundle>
+    <Parameters>
+        <Parameter name="flow.kvm.name">proxy-routing-map</Parameter>
+        <Parameter name="flow.routing.key" ref="request.header.X-Route-To"/>
+    </Parameters>
+</FlowCallout>

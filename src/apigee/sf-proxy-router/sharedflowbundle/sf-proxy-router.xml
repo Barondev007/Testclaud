@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<SharedFlowBundle revision="1" name="sf-proxy-router">
+    <DisplayName>SF - Proxy Router</DisplayName>
+    <Description>Shared flow for routing requests to backend proxies based on header and KVM lookup</Description>
+    <SharedFlows>
+        <SharedFlow>default</SharedFlow>
+    </SharedFlows>
+    <Policies>
+        <Policy>KVM-GetTargetProxy</Policy>
+        <Policy>RF-MissingHeader</Policy>
+        <Policy>RF-ProxyNotFound</Policy>
+    </Policies>
+</SharedFlowBundle>

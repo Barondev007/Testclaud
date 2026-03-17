@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<SharedFlow name="default">
+    <!--
+        Required flow variables (set before calling this shared flow):
+        - flow.kvm.name : Name of the KVM containing proxy routing mappings
+        - flow.routing.header : (optional) Header name to use for routing, defaults to X-Route-To
+
+        Output flow variables:
+        - private.targetProxyBasePath : The basepath of the target proxy from KVM
+    -->
+    <Step>
+        <Name>RF-MissingHeader</Name>
+        <Condition>(flow.routing.header = null and request.header.X-Route-To = null) or (flow.routing.header != null and request.header.{flow.routing.header} = null)</Condition>
+    </Step>
+    <Step>
+        <Name>KVM-GetTargetProxy</Name>
+    </Step>
+    <Step>
+        <Name>RF-ProxyNotFound</Name>
+        <Condition>private.targetProxyBasePath = null</Condition>
+    </Step>
+</SharedFlow>

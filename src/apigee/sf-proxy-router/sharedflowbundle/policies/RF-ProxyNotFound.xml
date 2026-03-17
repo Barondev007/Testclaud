@@ -5,7 +5,7 @@
         <Set>
             <StatusCode>404</StatusCode>
             <ReasonPhrase>Not Found</ReasonPhrase>
-            <Payload contentType="application/json">{"error":"No backend proxy configured for route '{request.header.X-Route-To}'"}</Payload>
+            <Payload contentType="application/json">{"error":"No backend proxy configured for the requested route"}</Payload>
         </Set>
     </FaultResponse>
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>

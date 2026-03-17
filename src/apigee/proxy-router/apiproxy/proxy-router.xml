@@ -10,8 +10,6 @@
         <TargetEndpoint>default</TargetEndpoint>
     </TargetEndpoints>
     <Policies>
-        <Policy>KVM-GetTargetProxy</Policy>
-        <Policy>RF-MissingHeader</Policy>
-        <Policy>RF-ProxyNotFound</Policy>
+        <Policy>FC-ProxyRouter</Policy>
     </Policies>
 </APIProxy>

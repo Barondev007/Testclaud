@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<KeyValueMapOperations name="KVM-GetTargetProxy" mapIdentifier="proxy-routing-map">
+<KeyValueMapOperations name="KVM-GetTargetProxy" mapIdentifier="{flow.kvm.name}">
     <DisplayName>KVM - Get Target Proxy</DisplayName>
     <Scope>environment</Scope>
     <ExpiryTimeInSecs>300</ExpiryTimeInSecs>
     <Get assignTo="private.targetProxyBasePath">
         <Key>
-            <Parameter ref="request.header.X-Route-To"/>
+            <Parameter ref="flow.routing.key"/>
         </Key>
     </Get>
 </KeyValueMapOperations>

@@ -2,19 +2,8 @@
 <ProxyEndpoint name="default">
     <PreFlow name="PreFlow">
         <Request>
-            <!-- Raise fault if routing header is missing -->
             <Step>
-                <Name>RF-MissingHeader</Name>
-                <Condition>request.header.X-Route-To = null</Condition>
-            </Step>
-            <!-- Lookup the target proxy basepath from KVM using the header value -->
-            <Step>
-                <Name>KVM-GetTargetProxy</Name>
-            </Step>
-            <!-- Raise fault if no mapping found in KVM -->
-            <Step>
-                <Name>RF-ProxyNotFound</Name>
-                <Condition>private.targetProxyBasePath = null</Condition>
+                <Name>FC-ProxyRouter</Name>
             </Step>
         </Request>
         <Response/>
