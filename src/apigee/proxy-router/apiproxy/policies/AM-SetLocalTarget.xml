@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage name="AM-SetLocalTarget">
+    <DisplayName>AM - Set Local Target</DisplayName>
+    <AssignVariable>
+        <Name>target.url</Name>
+        <Template>http://localhost{private.targetProxyBasePath}</Template>
+    </AssignVariable>
+    <IgnoreUnresolvedVariables>false</IgnoreUnresolvedVariables>
+</AssignMessage>

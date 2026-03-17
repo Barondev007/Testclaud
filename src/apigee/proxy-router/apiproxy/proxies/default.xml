@@ -2,8 +2,13 @@
 <ProxyEndpoint name="default">
     <PreFlow name="PreFlow">
         <Request>
+            <!-- Shared flow sets private.targetProxyBasePath from KVM -->
             <Step>
                 <Name>FC-ProxyRouter</Name>
+            </Step>
+            <!-- Set target.url to local proxy -->
+            <Step>
+                <Name>AM-SetLocalTarget</Name>
             </Step>
         </Request>
         <Response/>
