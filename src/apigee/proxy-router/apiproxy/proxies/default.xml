@@ -16,10 +16,6 @@
                 <Name>RF-ProxyNotFound</Name>
                 <Condition>private.targetProxyBasePath = null</Condition>
             </Step>
-            <!-- Build the local target URL -->
-            <Step>
-                <Name>AM-SetTargetRoute</Name>
-            </Step>
         </Request>
         <Response/>
     </PreFlow>

@@ -9,8 +9,7 @@
         <Request/>
         <Response/>
     </PostFlow>
-    <HTTPTargetConnection>
-        <!-- Overridden dynamically by AM-SetTargetRoute -->
-        <URL>https://placeholder.local</URL>
-    </HTTPTargetConnection>
+    <LocalTargetConnection>
+        <Path>{private.targetProxyBasePath}</Path>
+    </LocalTargetConnection>
 </TargetEndpoint>
