@@ -3,7 +3,7 @@
     <DisplayName>KVM - Get Target Proxy</DisplayName>
     <Scope>environment</Scope>
     <ExpiryTimeInSecs>300</ExpiryTimeInSecs>
-    <Get assignTo="private.targetProxyBasePath">
+    <Get assignTo="private.targetProxy">
         <Key>
             <Parameter ref="flow.routing.key"/>
         </Key>

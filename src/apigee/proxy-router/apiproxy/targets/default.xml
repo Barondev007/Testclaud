@@ -10,6 +10,7 @@
         <Response/>
     </PostFlow>
     <LocalTargetConnection>
-        <Path>{private.targetProxyBasePath}</Path>
+        <APIProxy>{private.targetProxy}</APIProxy>
+        <ProxyEndpoint>default</ProxyEndpoint>
     </LocalTargetConnection>
 </TargetEndpoint>
