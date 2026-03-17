@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="proxy-router">
+    <DisplayName>Proxy Router</DisplayName>
+    <Description>Routes requests to backend proxies based on a header value looked up in KVM</Description>
+    <BasePaths>/router</BasePaths>
+    <ProxyEndpoints>
+        <ProxyEndpoint>default</ProxyEndpoint>
+    </ProxyEndpoints>
+    <TargetEndpoints>
+        <TargetEndpoint>default</TargetEndpoint>
+    </TargetEndpoints>
+    <Policies>
+        <Policy>KVM-GetTargetProxy</Policy>
+        <Policy>AM-SetTargetRoute</Policy>
+        <Policy>RF-MissingHeader</Policy>
+        <Policy>RF-ProxyNotFound</Policy>
+    </Policies>
+</APIProxy>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<KeyValueMapOperations name="KVM-GetTargetProxy" mapIdentifier="proxy-routing-map">
+    <DisplayName>KVM - Get Target Proxy</DisplayName>
+    <Scope>environment</Scope>
+    <ExpiryTimeInSecs>300</ExpiryTimeInSecs>
+    <Get assignTo="private.targetProxyBasePath">
+        <Key>
+            <Parameter ref="request.header.X-Route-To"/>
+        </Key>
+    </Get>
+</KeyValueMapOperations>
