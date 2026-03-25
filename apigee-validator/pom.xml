@@ -108,8 +108,8 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <!-- Disable minimizeJar - it breaks dynamic class loading -->
-                            <minimizeJar>false</minimizeJar>
+                            <!-- Enable minimizeJar for smaller JAR size -->
+                            <minimizeJar>true</minimizeJar>
                             <!-- Minimal transformers for Edge compatibility -->
                             <transformers>
                                 <!-- Simple manifest without mainClass (library JAR) -->
@@ -153,7 +153,24 @@
                                         <exclude>META-INF/*.kotlin_module</exclude>
                                         <!-- Spring files (not needed) -->
                                         <exclude>META-INF/spring.*</exclude>
+                                        <!-- GraalVM native-image config -->
+                                        <exclude>META-INF/native-image/**</exclude>
+                                        <!-- Text files -->
+                                        <exclude>**/*.html</exclude>
+                                        <exclude>**/*.txt</exclude>
+                                        <exclude>**/*.md</exclude>
+                                        <exclude>**/pom.xml</exclude>
+                                        <exclude>**/pom.properties</exclude>
+                                        <!-- OpenAPI spec examples (if any) -->
+                                        <exclude>openapi/**</exclude>
                                     </excludes>
+                                </filter>
+                                <!-- Keep all validator classes needed for runtime -->
+                                <filter>
+                                    <artifact>be.bnppf:openapivalidator</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
                                 </filter>
                             </filters>
                             <relocations>

@@ -16,7 +16,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <swagger-request-validator.version>2.30.0</swagger-request-validator.version>
+        <!-- swagger-request-validator version is now specified directly in dependency -->
         <!-- Directory where dependency JARs will be copied for Apigee upload -->
         <apigee.resources.dir>${project.build.directory}/apigee-resources</apigee.resources.dir>
     </properties>
@@ -125,10 +125,11 @@
         <!-- ================================================================== -->
 
         <!-- Atlassian Swagger Request Validator Core - REQUIRED -->
+        <!-- Using older, smaller version 2.19.x instead of 2.30.0 -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>
             <artifactId>swagger-request-validator-core</artifactId>
-            <version>${swagger-request-validator.version}</version>
+            <version>2.19.4</version>
             <exclusions>
                 <!-- Exclude Apigee-provided dependencies -->
                 <exclusion>
@@ -215,49 +216,33 @@
                     <groupId>org.checkerframework</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+                <!-- Additional exclusions to reduce size -->
+                <exclusion>
+                    <groupId>com.damnhandy</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.mozilla</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.ethlo.time</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
         <!-- SnakeYAML - NOT provided by Apigee, REQUIRED for YAML parsing -->
+        <!-- Using older smaller version -->
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
             <version>1.33</version>
         </dependency>
 
-        <!-- Swagger Parser - NOT provided by Apigee, REQUIRED for OpenAPI spec parsing -->
-        <dependency>
-            <groupId>io.swagger.parser.v3</groupId>
-            <artifactId>swagger-parser</artifactId>
-            <version>2.1.12</version>
-            <exclusions>
-                <!-- Exclude Apigee-provided dependencies -->
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.dataformat</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-io</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+        <!-- NOTE: swagger-parser is NOT explicitly included because it's already
+             a transitive dependency of swagger-request-validator-core.
+             This avoids duplicate classes and reduces JAR size. -->
 
         <!-- Test dependencies -->
         <dependency>
@@ -453,7 +438,7 @@ NOT be uploaded to avoid version conflicts.
         </plugins>
     </build>
 
-    <!-- Optional: Profile for creating a shaded uber-JAR if needed -->
+    <!-- Profile for creating a shaded uber-JAR with aggressive minimization -->
     <profiles>
         <profile>
             <id>uber-jar</id>
@@ -462,7 +447,7 @@ NOT be uploaded to avoid version conflicts.
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.2.4</version>
+                        <version>3.5.1</version>
                         <executions>
                             <execution>
                                 <phase>package</phase>
@@ -478,16 +463,38 @@ NOT be uploaded to avoid version conflicts.
                                         <filter>
                                             <artifact>*:*</artifact>
                                             <excludes>
+                                                <!-- Signature files -->
                                                 <exclude>META-INF/*.SF</exclude>
                                                 <exclude>META-INF/*.DSA</exclude>
                                                 <exclude>META-INF/*.RSA</exclude>
+                                                <!-- Legal files -->
                                                 <exclude>META-INF/NOTICE*</exclude>
                                                 <exclude>META-INF/LICENSE*</exclude>
                                                 <exclude>META-INF/DEPENDENCIES</exclude>
+                                                <exclude>META-INF/MANIFEST.MF</exclude>
+                                                <!-- Build metadata -->
                                                 <exclude>META-INF/maven/**</exclude>
                                                 <exclude>META-INF/versions/**</exclude>
+                                                <exclude>META-INF/native-image/**</exclude>
+                                                <exclude>META-INF/proguard/**</exclude>
+                                                <!-- Module info (Java 9+) -->
                                                 <exclude>module-info.class</exclude>
+                                                <!-- Android files -->
+                                                <exclude>META-INF/*.kotlin_module</exclude>
+                                                <!-- Unused resource files -->
+                                                <exclude>**/*.html</exclude>
+                                                <exclude>**/*.txt</exclude>
+                                                <exclude>**/*.md</exclude>
+                                                <exclude>**/pom.xml</exclude>
+                                                <exclude>**/pom.properties</exclude>
                                             </excludes>
+                                        </filter>
+                                        <!-- Keep only used classes from swagger-request-validator -->
+                                        <filter>
+                                            <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
+                                            <includes>
+                                                <include>com/atlassian/oai/validator/**</include>
+                                            </includes>
                                         </filter>
                                     </filters>
                                     <relocations>
@@ -513,6 +520,83 @@ NOT be uploaded to avoid version conflicts.
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Alternative: Use ProGuard for maximum compression (can reduce to ~3-5MB) -->
+        <profile>
+            <id>proguard</id>
+            <build>
+                <plugins>
+                    <!-- First shade to create uber jar -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                                    <minimizeJar>false</minimizeJar>
+                                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <shadedClassifierName>pre-proguard</shadedClassifierName>
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                                <exclude>META-INF/NOTICE*</exclude>
+                                                <exclude>META-INF/LICENSE*</exclude>
+                                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                                <exclude>META-INF/maven/**</exclude>
+                                                <exclude>META-INF/versions/**</exclude>
+                                                <exclude>module-info.class</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Then apply ProGuard -->
+                    <plugin>
+                        <groupId>com.github.wvengen</groupId>
+                        <artifactId>proguard-maven-plugin</artifactId>
+                        <version>2.6.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>proguard</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <injar>${project.build.finalName}-pre-proguard.jar</injar>
+                            <outjar>${project.build.finalName}-optimized.jar</outjar>
+                            <obfuscate>false</obfuscate>
+                            <options>
+                                <option>-dontoptimize</option>
+                                <option>-dontwarn **</option>
+                                <option>-keep public class com.example.apigee.OpenApiValidatorCallout { *; }</option>
+                                <option>-keep class com.apigee.** { *; }</option>
+                                <option>-keepattributes Signature,*Annotation*</option>
+                            </options>
+                            <libs>
+                                <lib>${java.home}/lib/rt.jar</lib>
+                            </libs>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
