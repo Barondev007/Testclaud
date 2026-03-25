@@ -180,13 +180,8 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Bouncy Castle - PROVIDED BY APIGEE (for crypto) -->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.70</version>
-            <scope>provided</scope>
-        </dependency>
+        <!-- NOTE: Bouncy Castle is NOT needed for OpenAPI validation -->
+        <!-- It's excluded from swagger-request-validator dependencies -->
 
         <!-- ================================================================== -->
         <!-- DEPENDENCIES TO UPLOAD AS APIGEE PROXY RESOURCES                  -->
@@ -551,7 +546,6 @@ APIGEE 4.52 PROVIDED DEPENDENCIES (NOT INCLUDED):
 - Apache HttpClient/HttpCore 4.x
 - Joda-Time 2.x
 - Gson
-- Bouncy Castle (crypto)
 - Servlet API
 
 These dependencies are available in the Apigee Edge runtime and should
