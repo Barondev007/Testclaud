@@ -118,6 +118,76 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Apache HttpClient - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.13</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+            <version>4.4.14</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Apache Commons Codec - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.15</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Apache Commons Collections - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+            <version>3.2.2</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Javax Servlet API - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>4.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SnakeYAML - May be PROVIDED BY APIGEE (check your version) -->
+        <!-- If Apigee provides it, uncomment this and remove from runtime deps
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.30</version>
+            <scope>provided</scope>
+        </dependency>
+        -->
+
+        <!-- Gson - PROVIDED BY APIGEE -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.9.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Bouncy Castle - PROVIDED BY APIGEE (for crypto) -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>1.70</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- ================================================================== -->
         <!-- DEPENDENCIES TO UPLOAD AS APIGEE PROXY RESOURCES                  -->
         <!-- These are NOT available in Apigee Edge 4.52 runtime               -->
@@ -229,6 +299,44 @@
                     <groupId>com.ethlo.time</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+                <!-- More Apigee-provided libraries -->
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-codec</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-collections</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.code.gson</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Annotation libraries not needed at runtime -->
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.android</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -304,18 +412,27 @@
                                 com.fasterxml.jackson.datatype,
                                 com.google.guava,
                                 com.google.code.findbugs,
+                                com.google.code.gson,
                                 com.google.errorprone,
                                 com.google.j2objc,
+                                com.google.android,
                                 org.slf4j,
                                 ch.qos.logback,
                                 org.apache.commons,
+                                org.apache.httpcomponents,
                                 commons-io,
                                 commons-logging,
+                                commons-codec,
+                                commons-collections,
                                 joda-time,
                                 javax.validation,
                                 javax.mail,
+                                javax.servlet,
+                                javax.annotation,
                                 com.sun.mail,
-                                org.checkerframework
+                                org.checkerframework,
+                                org.bouncycastle,
+                                org.codehaus.mojo
                             </excludeGroupIds>
                             <overWriteReleases>false</overWriteReleases>
                             <overWriteSnapshots>true</overWriteSnapshots>
@@ -358,18 +475,27 @@
                                 com.fasterxml.jackson.datatype,
                                 com.google.guava,
                                 com.google.code.findbugs,
+                                com.google.code.gson,
                                 com.google.errorprone,
                                 com.google.j2objc,
+                                com.google.android,
                                 org.slf4j,
                                 ch.qos.logback,
                                 org.apache.commons,
+                                org.apache.httpcomponents,
                                 commons-io,
                                 commons-logging,
+                                commons-codec,
+                                commons-collections,
                                 joda-time,
                                 javax.validation,
                                 javax.mail,
+                                javax.servlet,
+                                javax.annotation,
                                 com.sun.mail,
-                                org.checkerframework
+                                org.checkerframework,
+                                org.bouncycastle,
+                                org.codehaus.mojo
                             </excludeGroupIds>
                         </configuration>
                     </execution>
@@ -421,9 +547,12 @@ APIGEE 4.52 PROVIDED DEPENDENCIES (NOT INCLUDED):
 - Jackson dataformat YAML 2.12.x
 - Guava 30.x
 - SLF4J 1.7.x
-- Apache Commons Lang3 3.x
-- Apache Commons IO 2.x
+- Apache Commons (Lang3, IO, Codec, Collections)
+- Apache HttpClient/HttpCore 4.x
 - Joda-Time 2.x
+- Gson
+- Bouncy Castle (crypto)
+- Servlet API
 
 These dependencies are available in the Apigee Edge runtime and should
 NOT be uploaded to avoid version conflicts.

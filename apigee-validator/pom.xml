@@ -29,49 +29,138 @@
             <artifactId>swagger-request-validator-core</artifactId>
             <version>${swagger-request-validator.version}</version>
             <exclusions>
-                <!-- Exclude SLF4J - Apigee has its own logging -->
+                <!-- ========================================= -->
+                <!-- APIGEE-PROVIDED LIBRARIES - EXCLUDE ALL  -->
+                <!-- ========================================= -->
+
+                <!-- SLF4J - Apigee has its own logging -->
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude Guava - Apigee bundles its own version -->
+                <exclusion>
+                    <groupId>ch.qos.logback</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Guava - Apigee bundles its own version -->
                 <exclusion>
                     <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
+                    <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude findbugs annotations -->
                 <exclusion>
                     <groupId>com.google.code.findbugs</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude javax.annotation - Apigee has it -->
                 <exclusion>
-                    <groupId>javax.annotation</groupId>
+                    <groupId>com.google.code.gson</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude error_prone -->
                 <exclusion>
                     <groupId>com.google.errorprone</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Exclude j2objc -->
                 <exclusion>
                     <groupId>com.google.j2objc</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Jackson - Apigee provides 2.12.x -->
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.datatype</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Apache Commons - Apigee provides these -->
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-io</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-codec</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-collections</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Apache HttpClient - Apigee provides -->
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Joda-Time - Apigee provides -->
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Javax APIs - Apigee provides -->
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.validation</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.mail</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.sun.mail</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+
+                <!-- Other exclusions -->
+                <exclusion>
+                    <groupId>org.checkerframework</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.damnhandy</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.ethlo.time</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
 
-        <!-- SLF4J NOP - silent logging -->
+        <!-- SLF4J - PROVIDED BY APIGEE (compile scope for IDE, excluded from shaded JAR) -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.32</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-nop</artifactId>
-            <version>1.7.32</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Test dependencies -->
