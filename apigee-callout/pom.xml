@@ -332,6 +332,26 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+                <!-- ========================================= -->
+                <!-- OPENAPI 2.0 (Swagger) - EXCLUDE IF YOU   -->
+                <!-- ONLY USE OPENAPI 3.0+ SPECS              -->
+                <!-- ========================================= -->
+                <exclusion>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-models</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.swagger.parser.v3</groupId>
+                    <artifactId>swagger-parser-v2-converter</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
