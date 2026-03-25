@@ -186,25 +186,15 @@
         <!-- ================================================================== -->
         <!-- DEPENDENCIES TO UPLOAD AS APIGEE PROXY RESOURCES                  -->
         <!-- These are NOT available in Apigee Edge 4.52 runtime               -->
-        <!-- They will be copied to target/apigee-resources for upload         -->
         <!-- ================================================================== -->
 
-        <!-- Atlassian Swagger Request Validator Core - REQUIRED -->
-        <!-- Using older, smaller version 2.19.x instead of 2.30.0 -->
+        <!-- Networknt JSON Schema Validator - LIGHTWEIGHT (~1MB) -->
         <dependency>
-            <groupId>com.atlassian.oai</groupId>
-            <artifactId>swagger-request-validator-core</artifactId>
-            <version>2.19.4</version>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.0.87</version>
             <exclusions>
-                <!-- Exclude Apigee-provided dependencies -->
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
+                <!-- Exclude Apigee-provided -->
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>*</artifactId>
@@ -214,158 +204,28 @@
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.datatype</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.code.findbugs</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.errorprone</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.j2objc</groupId>
+                    <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>commons-io</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>joda-time</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>javax.validation</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>javax.mail</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.sun.mail</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>junit</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.hamcrest</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.github.tomakehurst</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.checkerframework</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <!-- Additional exclusions to reduce size -->
-                <exclusion>
-                    <groupId>com.damnhandy</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.mozilla</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
+                <!-- Exclude optional/unused -->
                 <exclusion>
                     <groupId>com.ethlo.time</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- More Apigee-provided libraries -->
                 <exclusion>
-                    <groupId>org.apache.httpcomponents</groupId>
+                    <groupId>org.jruby.joni</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>commons-codec</groupId>
+                    <groupId>org.jruby.jcodings</groupId>
                     <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-collections</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.code.gson</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <!-- Annotation libraries not needed at runtime -->
-                <exclusion>
-                    <groupId>javax.annotation</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.android</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <!-- ========================================= -->
-                <!-- OPENAPI 2.0 (Swagger) - EXCLUDE IF YOU   -->
-                <!-- ONLY USE OPENAPI 3.0+ SPECS              -->
-                <!-- ========================================= -->
-                <exclusion>
-                    <groupId>io.swagger</groupId>
-                    <artifactId>swagger-models</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.swagger</groupId>
-                    <artifactId>swagger-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.swagger</groupId>
-                    <artifactId>swagger-annotations</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.swagger.parser.v3</groupId>
-                    <artifactId>swagger-parser-v2-converter</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
-
-        <!-- SnakeYAML - NOT provided by Apigee, REQUIRED for YAML parsing -->
-        <!-- Using older smaller version -->
-        <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
-            <version>1.33</version>
-        </dependency>
-
-        <!-- NOTE: swagger-parser is NOT explicitly included because it's already
-             a transitive dependency of swagger-request-validator-core.
-             This avoids duplicate classes and reduces JAR size. -->
 
         <!-- Test dependencies -->
         <dependency>

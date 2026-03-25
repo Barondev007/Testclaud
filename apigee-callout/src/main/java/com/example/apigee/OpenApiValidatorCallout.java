@@ -5,31 +5,40 @@ import com.apigee.flow.execution.ExecutionResult;
 import com.apigee.flow.execution.spi.Execution;
 import com.apigee.flow.message.MessageContext;
 
-import com.atlassian.oai.validator.OpenApiInteractionValidator;
-import com.atlassian.oai.validator.model.SimpleRequest;
-import com.atlassian.oai.validator.model.SimpleResponse;
-import com.atlassian.oai.validator.report.LevelResolver;
-import com.atlassian.oai.validator.report.ValidationReport;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SpecVersion;
+import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.SchemaValidatorsConfig;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Apigee Java Callout for OpenAPI Request/Response Validation
+ *
+ * Uses lightweight networknt/json-schema-validator library (~1MB)
+ * instead of swagger-request-validator (~15MB).
  *
  * Features:
  * - Spec content from property, variable, URL, or resource file
  * - Thread-safe validator caching (one validator per unique spec + validation level)
  * - Configurable validation levels
  * - Support for both request and response validation
+ * - OpenAPI 3.0+ support
  *
  * Spec Source (one of these is required, checked in order):
  * 1. specfile     : The OpenAPI spec content as a String (YAML or JSON), or variable reference {varName}
@@ -42,8 +51,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *     - "response" : Validate outgoing response
  * - validation-level : Validation level (default: "strict")
  *     - "light"    : All errors stored in variable, flow NOT blocked
- *     - "lenient"  : Additional properties AND oneOf/anyOf/allOf ignored
- *     - "moderate" : Additional properties AND oneOf ignored, anyOf/allOf still validated
+ *     - "lenient"  : Additional properties allowed
+ *     - "moderate" : Additional properties allowed at root level only
  *     - "strict"   : All errors block the flow
  *
  * Output Variables:
@@ -72,13 +81,17 @@ public class OpenApiValidatorCallout implements Execution {
     private static final String LEVEL_STRICT = "strict";
 
     // ========================================================================
-    // VALIDATOR CACHE
+    // SPEC CACHE
     // ========================================================================
 
-    private static final ConcurrentHashMap<String, OpenApiInteractionValidator> VALIDATOR_CACHE =
-            new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ParsedSpec> SPEC_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, String> URL_CACHE = new ConcurrentHashMap<>();
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
 
     private final Map<String, String> properties;
+    private String lastResourceError = null;
 
     public OpenApiValidatorCallout(Map<String, String> properties) {
         this.properties = properties;
@@ -115,16 +128,6 @@ public class OpenApiValidatorCallout implements Execution {
 
             // Debug variables
             messageContext.setVariable("openapi.debug.spec.source", specSource);
-            messageContext.setVariable("openapi.debug.specfile.raw", properties.get("specfile"));
-            messageContext.setVariable("openapi.debug.spec-url", properties.get("spec-url"));
-            messageContext.setVariable("openapi.debug.spec-resource", properties.get("spec-resource"));
-            messageContext.setVariable("openapi.debug.specfile.resolved",
-                specContent != null ? specContent.substring(0, Math.min(200, specContent.length())) : "NULL");
-            messageContext.setVariable("openapi.debug.specfile.length",
-                specContent != null ? String.valueOf(specContent.length()) : "0");
-            if (lastResourceError != null) {
-                messageContext.setVariable("openapi.debug.resource.error", lastResourceError);
-            }
 
             if (specContent == null || specContent.isEmpty()) {
                 String errorMsg = "OpenAPI spec not provided. ";
@@ -138,17 +141,6 @@ public class OpenApiValidatorCallout implements Execution {
             }
 
             specContent = specContent.trim();
-
-            // Validate spec format
-            if (!specContent.startsWith("openapi") &&
-                !specContent.startsWith("swagger") &&
-                !specContent.startsWith("{") &&
-                !specContent.startsWith("\"openapi") &&
-                !specContent.startsWith("'openapi")) {
-                setError(messageContext, "Invalid spec format. Must be YAML or JSON. " +
-                    "Received: " + specContent.substring(0, Math.min(50, specContent.length())));
-                return ExecutionResult.ABORT;
-            }
 
             // Get validation level (default: strict)
             String validationLevel = resolveProperty("validation-level", messageContext);
@@ -180,41 +172,65 @@ public class OpenApiValidatorCallout implements Execution {
             }
 
             messageContext.setVariable("openapi.validation.type", validationType);
-            messageContext.setVariable("openapi.debug.validation.type", validationType);
 
-            // Get cached validator
-            OpenApiInteractionValidator validator;
+            // Parse spec (cached)
+            ParsedSpec spec;
             try {
-                validator = getValidator(specContent, validationLevel);
+                spec = getOrParseSpec(specContent, validationLevel);
             } catch (Exception e) {
                 setError(messageContext, "Failed to parse OpenAPI spec: " + e.getMessage());
                 return ExecutionResult.ABORT;
             }
 
-            // Common: HTTP method and path (needed for both request and response)
+            // Get request/response details
             String httpMethod = messageContext.getVariable("request.verb");
             String requestPath = messageContext.getVariable("proxy.pathsuffix");
 
             if (httpMethod == null) httpMethod = "GET";
             if (requestPath == null || requestPath.isEmpty()) requestPath = "/";
 
-            ValidationReport report;
-
+            // Get body based on validation type
+            String body;
             if (TYPE_RESPONSE.equals(validationType)) {
-                // ============================================================
-                // RESPONSE VALIDATION
-                // ============================================================
-                report = validateResponse(messageContext, validator, httpMethod, requestPath);
-
+                body = messageContext.getVariable("response.content");
             } else {
-                // ============================================================
-                // REQUEST VALIDATION
-                // ============================================================
-                report = validateRequest(messageContext, validator, httpMethod, requestPath);
+                body = messageContext.getVariable("request.content");
             }
 
-            // Collect all messages
-            List<String> allMessages = collectAllMessages(report);
+            // Find schema for this path/method
+            JsonSchema schema = spec.findSchema(requestPath, httpMethod.toLowerCase(), validationType);
+
+            if (schema == null) {
+                // No schema defined for this path/method - pass through
+                messageContext.setVariable("openapi.validation.failed", "false");
+                messageContext.setVariable("openapi.validation.info",
+                    "No schema defined for " + httpMethod + " " + requestPath);
+                return ExecutionResult.SUCCESS;
+            }
+
+            // If no body to validate, pass through
+            if (body == null || body.trim().isEmpty()) {
+                messageContext.setVariable("openapi.validation.failed", "false");
+                return ExecutionResult.SUCCESS;
+            }
+
+            // Parse body as JSON
+            JsonNode bodyNode;
+            try {
+                bodyNode = JSON_MAPPER.readTree(body);
+            } catch (Exception e) {
+                setError(messageContext, "Invalid JSON in " + validationType + " body: " + e.getMessage());
+                return ExecutionResult.ABORT;
+            }
+
+            // Validate
+            Set<ValidationMessage> errors = schema.validate(bodyNode);
+
+            // Collect error messages
+            List<String> allMessages = new ArrayList<>();
+            for (ValidationMessage msg : errors) {
+                allMessages.add(msg.getMessage());
+            }
             int errorCount = allMessages.size();
 
             // Store all messages
@@ -234,10 +250,9 @@ public class OpenApiValidatorCallout implements Execution {
                 return ExecutionResult.SUCCESS;
 
             } else {
-                // Lenient/Strict mode: Block on errors
-                if (report.hasErrors()) {
-                    String errorMessage = formatErrors(report);
-                    setError(messageContext, errorMessage);
+                // Other modes: Block on errors
+                if (errorCount > 0) {
+                    setError(messageContext, String.join("; ", allMessages));
                     return ExecutionResult.ABORT;
                 }
                 messageContext.setVariable("openapi.validation.failed", "false");
@@ -251,250 +266,42 @@ public class OpenApiValidatorCallout implements Execution {
     }
 
     // ========================================================================
-    // VALIDATOR CACHE METHODS
+    // SPEC PARSING AND CACHING
     // ========================================================================
 
-    private static OpenApiInteractionValidator getValidator(String specContent, String validationLevel) {
-        String specHash = hashSpec(specContent);
-        String cacheKey = specHash + "|" + validationLevel;
-
-        return VALIDATOR_CACHE.computeIfAbsent(cacheKey, key ->
-                createValidator(specContent, validationLevel));
-    }
-
-    private static String hashSpec(String specContent) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(specContent.getBytes("UTF-8"));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            return String.valueOf(specContent.hashCode());
-        }
-    }
-
-    private static OpenApiInteractionValidator createValidator(String specContent, String validationLevel) {
-        OpenApiInteractionValidator.Builder builder =
-                OpenApiInteractionValidator.createForInlineApiSpecification(specContent);
-
-        switch (validationLevel) {
-            case LEVEL_LIGHT:
-                // Light mode: Demote all errors to INFO (non-blocking)
-                builder.withLevelResolver(createLightLevelResolver());
-                break;
-
-            case LEVEL_LENIENT:
-                // Lenient mode: Ignore additional properties AND oneOf/anyOf/allOf errors
-                // This matches Apigee OASValidation policy behavior more closely
-                builder.withLevelResolver(createLenientLevelResolver());
-                break;
-
-            case LEVEL_MODERATE:
-                // Moderate mode: Ignore additional properties AND oneOf errors only
-                // anyOf/allOf are still validated, individual schemas inside oneOf are validated
-                builder.withLevelResolver(createModerateLevelResolver());
-                break;
-
-            case LEVEL_STRICT:
-            default:
-                // Strict mode: All validations enforced
-                break;
-        }
-
-        return builder.build();
-    }
-
-    /**
-     * Creates a LevelResolver that demotes all errors to INFO level.
-     */
-    private static LevelResolver createLightLevelResolver() {
-        return LevelResolver.create()
-            .withLevel("validation.request.body.schema.additionalProperties", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.additionalProperties", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.required", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.required", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.type", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.type", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.format", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.enum", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.minimum", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.maximum", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.minLength", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.maxLength", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.pattern", ValidationReport.Level.INFO)
-            .withLevel("validation.request.parameter.query.missing", ValidationReport.Level.INFO)
-            .withLevel("validation.request.parameter.header.missing", ValidationReport.Level.INFO)
-            .withLevel("validation.request.path.missing", ValidationReport.Level.INFO)
-            .withLevel("validation.request.contentType.notAllowed", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.missing", ValidationReport.Level.INFO)
-            // oneOf/anyOf/allOf validation
-            .withLevel("validation.request.body.schema.oneOf", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.anyOf", ValidationReport.Level.INFO)
-            .withLevel("validation.request.body.schema.allOf", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.oneOf", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.anyOf", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.allOf", ValidationReport.Level.INFO)
-            // Discriminator validation
-            .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.INFO)
-            .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.INFO)
-            .build();
-    }
-
-    /**
-     * Creates a LevelResolver for lenient mode that ignores additional properties
-     * AND oneOf/anyOf/allOf errors (to match Apigee OASValidation behavior).
-     */
-    private static LevelResolver createLenientLevelResolver() {
-        return LevelResolver.create()
-            // Additional properties - ignore
-            .withLevel("validation.request.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
-            // oneOf/anyOf/allOf validation - ignore (Apigee OASValidation is lenient here)
-            .withLevel("validation.request.body.schema.oneOf", ValidationReport.Level.IGNORE)
-            .withLevel("validation.request.body.schema.anyOf", ValidationReport.Level.IGNORE)
-            .withLevel("validation.request.body.schema.allOf", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.oneOf", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.anyOf", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.allOf", ValidationReport.Level.IGNORE)
-            // Discriminator validation - ignore
-            .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.IGNORE)
-            .build();
-    }
-
-    /**
-     * Creates a LevelResolver for moderate mode that ignores additional properties
-     * AND oneOf errors only. anyOf/allOf are still validated.
-     * Individual schemas inside oneOf are still validated for type, required fields, etc.
-     */
-    private static LevelResolver createModerateLevelResolver() {
-        return LevelResolver.create()
-            // Additional properties - ignore
-            .withLevel("validation.request.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.additionalProperties", ValidationReport.Level.IGNORE)
-            // oneOf validation only - ignore the "must match exactly one" constraint
-            // This allows data to match zero or multiple schemas without error
-            .withLevel("validation.request.body.schema.oneOf", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.oneOf", ValidationReport.Level.IGNORE)
-            // anyOf and allOf are still validated (not ignored)
-            // Discriminator - ignore (often used with oneOf)
-            .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.IGNORE)
-            .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.IGNORE)
-            .build();
-    }
-
-    // ========================================================================
-    // VALIDATION METHODS
-    // ========================================================================
-
-    private ValidationReport validateRequest(MessageContext messageContext,
-            OpenApiInteractionValidator validator, String httpMethod, String requestPath) {
-
-        String contentType = messageContext.getVariable("request.header.content-type");
-        String requestBody = messageContext.getVariable("request.content");
-
-        if (contentType == null) contentType = "application/json";
-
-        // Build request
-        SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(httpMethod, requestPath);
-
-        if (requestBody != null && !requestBody.isEmpty()) {
-            requestBuilder.withBody(requestBody);
-            requestBuilder.withContentType(contentType);
-        }
-
-        // Add query parameters
-        String queryString = messageContext.getVariable("request.querystring");
-        if (queryString != null && !queryString.isEmpty()) {
-            addQueryParams(requestBuilder, queryString);
-        }
-
-        // Add request headers
-        addRequestHeaders(requestBuilder, messageContext);
-
-        return validator.validateRequest(requestBuilder.build());
-    }
-
-    private ValidationReport validateResponse(MessageContext messageContext,
-            OpenApiInteractionValidator validator, String httpMethod, String requestPath) {
-
-        // Get response status code
-        String statusStr = messageContext.getVariable("response.status.code");
-        int statusCode = 200;
-        if (statusStr != null && !statusStr.isEmpty()) {
+    private ParsedSpec getOrParseSpec(String specContent, String validationLevel) throws Exception {
+        String hash = hashSpec(specContent) + "|" + validationLevel;
+        return SPEC_CACHE.computeIfAbsent(hash, k -> {
             try {
-                statusCode = Integer.parseInt(statusStr.trim());
-            } catch (NumberFormatException e) {
-                statusCode = 200;
+                return parseSpec(specContent, validationLevel);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to parse spec: " + e.getMessage(), e);
             }
-        }
-
-        // Get response body and content type
-        String responseBody = messageContext.getVariable("response.content");
-        String contentType = messageContext.getVariable("response.header.content-type");
-
-        if (contentType == null) contentType = "application/json";
-
-        // Build response
-        SimpleResponse.Builder responseBuilder = new SimpleResponse.Builder(statusCode);
-
-        if (responseBody != null && !responseBody.isEmpty()) {
-            responseBuilder.withBody(responseBody);
-            responseBuilder.withContentType(contentType);
-        }
-
-        // Add response headers
-        addResponseHeaders(responseBuilder, messageContext);
-
-        // For response validation, we also need the request to match the operation
-        SimpleRequest.Builder requestBuilder = new SimpleRequest.Builder(httpMethod, requestPath);
-
-        return validator.validateResponse(requestPath, SimpleRequest.Method.valueOf(httpMethod.toUpperCase()),
-                responseBuilder.build());
+        });
     }
 
-    private void addRequestHeaders(SimpleRequest.Builder builder, MessageContext messageContext) {
-        // Add common headers that might be relevant for validation
-        String[] headerNames = {"accept", "authorization", "x-api-key", "x-request-id"};
-        for (String headerName : headerNames) {
-            String value = messageContext.getVariable("request.header." + headerName);
-            if (value != null && !value.isEmpty()) {
-                builder.withHeader(headerName, value);
-            }
+    private ParsedSpec parseSpec(String specContent, String validationLevel) throws Exception {
+        // Parse YAML or JSON
+        JsonNode root;
+        if (specContent.startsWith("{")) {
+            root = JSON_MAPPER.readTree(specContent);
+        } else {
+            root = YAML_MAPPER.readTree(specContent);
         }
-    }
 
-    private void addResponseHeaders(SimpleResponse.Builder builder, MessageContext messageContext) {
-        // Add common response headers that might be relevant for validation
-        String[] headerNames = {"content-type", "x-request-id", "x-correlation-id"};
-        for (String headerName : headerNames) {
-            String value = messageContext.getVariable("response.header." + headerName);
-            if (value != null && !value.isEmpty()) {
-                builder.withHeader(headerName, value);
-            }
-        }
+        boolean allowAdditionalProperties = LEVEL_LENIENT.equals(validationLevel) ||
+                                            LEVEL_MODERATE.equals(validationLevel);
+
+        return new ParsedSpec(root, allowAdditionalProperties);
     }
 
     // ========================================================================
     // HELPER METHODS
     // ========================================================================
 
-    // Cache for URL-loaded specs (to avoid fetching on every request)
-    private static final ConcurrentHashMap<String, String> SPEC_URL_CACHE = new ConcurrentHashMap<>();
-
-    /**
-     * Load spec content from a URL.
-     * The spec is cached after first fetch to avoid network calls on every request.
-     *
-     * @param specUrl URL to fetch the spec from
-     * @return The spec content as a String, or null if fetch failed
-     */
     private String loadFromUrl(String specUrl) {
         // Check cache first
-        String cached = SPEC_URL_CACHE.get(specUrl);
+        String cached = URL_CACHE.get(specUrl);
         if (cached != null) {
             return cached;
         }
@@ -504,8 +311,8 @@ public class OpenApiValidatorCallout implements Execution {
             URL url = new URL(specUrl);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(10000); // 10 seconds
-            connection.setReadTimeout(30000);    // 30 seconds
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(30000);
             connection.setRequestProperty("Accept", "application/yaml, application/json, text/yaml, text/plain");
 
             int responseCode = connection.getResponseCode();
@@ -514,7 +321,6 @@ public class OpenApiValidatorCallout implements Execution {
                 return null;
             }
 
-            // Read the content
             StringBuilder content = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
@@ -525,9 +331,7 @@ public class OpenApiValidatorCallout implements Execution {
             }
 
             String specContent = content.toString();
-
-            // Cache the spec
-            SPEC_URL_CACHE.put(specUrl, specContent);
+            URL_CACHE.put(specUrl, specContent);
             lastResourceError = null;
 
             return specContent;
@@ -542,30 +346,7 @@ public class OpenApiValidatorCallout implements Execution {
         }
     }
 
-    /**
-     * Clear the URL spec cache. Call this if you need to reload specs from URLs.
-     */
-    public static void clearUrlCache() {
-        SPEC_URL_CACHE.clear();
-    }
-
-    /**
-     * Load spec content from a proxy resource file.
-     * Tries multiple approaches to access proxy resources like the OASValidation policy does.
-     *
-     * Resource path formats supported:
-     * - "oas://petstore.yaml" (OAS resource type)
-     * - "openapi/petstore.yaml" (direct path)
-     * - "petstore.yaml" (simple filename)
-     *
-     * @param resourcePath Path to the resource file
-     * @param messageContext The message context for accessing proxy resources
-     * @return The file content as a String, or null if not found
-     */
     private String loadProxyResource(String resourcePath, MessageContext messageContext) {
-        StringBuilder errors = new StringBuilder();
-        InputStream inputStream = null;
-
         // Normalize resource path - remove oas:// prefix if present
         String normalizedPath = resourcePath;
         if (resourcePath.startsWith("oas://")) {
@@ -573,112 +354,17 @@ public class OpenApiValidatorCallout implements Execution {
         }
 
         try {
-            // Try 1: Use MessageContext's getResourceAsStream via reflection
-            try {
-                java.lang.reflect.Method method = messageContext.getClass().getMethod("getResourceAsStream", String.class);
-                inputStream = (InputStream) method.invoke(messageContext, normalizedPath);
-                if (inputStream != null) {
-                    errors.append("messageContext.getResourceAsStream: found; ");
-                } else {
-                    errors.append("messageContext.getResourceAsStream: not found; ");
-                }
-            } catch (NoSuchMethodException e) {
-                errors.append("messageContext.getResourceAsStream: method not available; ");
-            } catch (Exception e) {
-                errors.append("messageContext.getResourceAsStream: " + e.getMessage() + "; ");
-            }
-
-            // Try 2: Access through context's getContext() method
-            if (inputStream == null) {
-                try {
-                    java.lang.reflect.Method getContextMethod = messageContext.getClass().getMethod("getContext");
-                    Object context = getContextMethod.invoke(messageContext);
-                    if (context != null) {
-                        java.lang.reflect.Method method = context.getClass().getMethod("getResourceAsStream", String.class);
-                        inputStream = (InputStream) method.invoke(context, normalizedPath);
-                        if (inputStream != null) {
-                            errors.append("context.getResourceAsStream: found; ");
-                        } else {
-                            errors.append("context.getResourceAsStream: not found; ");
-                        }
-                    }
-                } catch (NoSuchMethodException e) {
-                    errors.append("context.getResourceAsStream: method not available; ");
-                } catch (Exception e) {
-                    errors.append("context.getResourceAsStream: " + e.getMessage() + "; ");
-                }
-            }
-
-            // Try 3: Access through getEnvironment().getResourceAsStream()
-            if (inputStream == null) {
-                try {
-                    java.lang.reflect.Method getEnvMethod = messageContext.getClass().getMethod("getEnvironment");
-                    Object env = getEnvMethod.invoke(messageContext);
-                    if (env != null) {
-                        java.lang.reflect.Method method = env.getClass().getMethod("getResourceAsStream", String.class);
-                        inputStream = (InputStream) method.invoke(env, normalizedPath);
-                        if (inputStream != null) {
-                            errors.append("environment.getResourceAsStream: found; ");
-                        } else {
-                            errors.append("environment.getResourceAsStream: not found; ");
-                        }
-                    }
-                } catch (NoSuchMethodException e) {
-                    errors.append("environment.getResourceAsStream: method not available; ");
-                } catch (Exception e) {
-                    errors.append("environment.getResourceAsStream: " + e.getMessage() + "; ");
-                }
-            }
-
-            // Try 4: Try to get resource from a variable that might have been set by another policy
-            if (inputStream == null) {
-                String varContent = messageContext.getVariable("proxyresource." + normalizedPath);
-                if (varContent != null && !varContent.isEmpty()) {
-                    lastResourceError = null;
-                    return varContent;
-                }
-                errors.append("proxyresource variable: not found; ");
-            }
-
-            // Try 5: Thread context classloader (for JAR-bundled resources)
-            if (inputStream == null) {
-                ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-                if (contextLoader != null) {
-                    inputStream = contextLoader.getResourceAsStream(normalizedPath);
-                    if (inputStream != null) {
-                        errors.append("ContextClassLoader: found; ");
-                    } else {
-                        errors.append("ContextClassLoader: not found; ");
-                    }
-                }
-            }
-
-            // Try 6: Class classloader
-            if (inputStream == null) {
-                inputStream = getClass().getClassLoader().getResourceAsStream(normalizedPath);
-                if (inputStream != null) {
-                    errors.append("ClassLoader: found; ");
-                } else {
-                    errors.append("ClassLoader: not found; ");
-                }
-            }
-
-            // Try 7: Direct class resource
+            // Try classloader
+            java.io.InputStream inputStream = getClass().getClassLoader().getResourceAsStream(normalizedPath);
             if (inputStream == null) {
                 inputStream = getClass().getResourceAsStream("/" + normalizedPath);
-                if (inputStream != null) {
-                    errors.append("Class.getResourceAsStream(/): found; ");
-                } else {
-                    errors.append("Class.getResourceAsStream(/): not found; ");
-                }
             }
 
             if (inputStream == null) {
-                lastResourceError = "Resource '" + resourcePath + "' not found. Tried: " + errors.toString();
+                lastResourceError = "Resource '" + resourcePath + "' not found in classpath";
                 return null;
             }
 
-            // Read the content
             StringBuilder content = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"))) {
                 String line;
@@ -690,13 +376,10 @@ public class OpenApiValidatorCallout implements Execution {
             return content.toString();
 
         } catch (Exception e) {
-            lastResourceError = "Error loading resource '" + resourcePath + "': " + e.getMessage() + ". Tried: " + errors.toString();
+            lastResourceError = "Error loading resource '" + resourcePath + "': " + e.getMessage();
             return null;
         }
     }
-
-    // Store last resource loading error for debugging
-    private String lastResourceError = null;
 
     private String resolveProperty(String propertyName, MessageContext messageContext) {
         String value = properties.get(propertyName);
@@ -714,53 +397,23 @@ public class OpenApiValidatorCallout implements Execution {
         return value;
     }
 
-    private void addQueryParams(SimpleRequest.Builder builder, String queryString) {
-        try {
-            String[] pairs = queryString.split("&");
-            for (String pair : pairs) {
-                String[] parts = pair.split("=", 2);
-                String key = java.net.URLDecoder.decode(parts[0], "UTF-8");
-                String value = parts.length > 1 ? java.net.URLDecoder.decode(parts[1], "UTF-8") : "";
-                builder.withQueryParam(key, value);
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-    }
-
-    /**
-     * Collect all messages (INFO, WARN, ERROR) for light mode.
-     */
-    private List<String> collectAllMessages(ValidationReport report) {
-        List<String> messages = new ArrayList<>();
-        for (ValidationReport.Message message : report.getMessages()) {
-            ValidationReport.Level level = message.getLevel();
-            if (level == ValidationReport.Level.INFO ||
-                level == ValidationReport.Level.WARN ||
-                level == ValidationReport.Level.ERROR) {
-                messages.add("[" + message.getKey() + "] " + message.getMessage());
-            }
-        }
-        return messages;
-    }
-
-    /**
-     * Format only ERROR level messages.
-     */
-    private String formatErrors(ValidationReport report) {
-        StringBuilder sb = new StringBuilder();
-        for (ValidationReport.Message message : report.getMessages()) {
-            if (message.getLevel() == ValidationReport.Level.ERROR) {
-                if (sb.length() > 0) sb.append("; ");
-                sb.append("[").append(message.getKey()).append("] ").append(message.getMessage());
-            }
-        }
-        return sb.toString();
-    }
-
     private void setError(MessageContext messageContext, String errorMessage) {
         messageContext.setVariable("openapi.validation.error", errorMessage);
         messageContext.setVariable("openapi.validation.failed", "true");
+    }
+
+    private static String hashSpec(String content) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(content.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return String.valueOf(content.hashCode());
+        }
     }
 
     // ========================================================================
@@ -768,10 +421,198 @@ public class OpenApiValidatorCallout implements Execution {
     // ========================================================================
 
     public static void clearCache() {
-        VALIDATOR_CACHE.clear();
+        SPEC_CACHE.clear();
+        URL_CACHE.clear();
     }
 
     public static int getCacheSize() {
-        return VALIDATOR_CACHE.size();
+        return SPEC_CACHE.size();
+    }
+
+    // ========================================================================
+    // PARSED SPEC CLASS
+    // ========================================================================
+
+    /**
+     * Holds parsed OpenAPI spec with pre-compiled JSON schemas for each path/method
+     */
+    private static class ParsedSpec {
+        private final JsonNode root;
+        private final ConcurrentHashMap<String, JsonSchema> schemas = new ConcurrentHashMap<>();
+        private final boolean allowAdditionalProperties;
+        private final JsonSchemaFactory factory;
+
+        ParsedSpec(JsonNode root, boolean allowAdditionalProperties) {
+            this.root = root;
+            this.allowAdditionalProperties = allowAdditionalProperties;
+            this.factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+        }
+
+        JsonSchema findSchema(String path, String method, String validationType) {
+            String key = validationType + "|" + method + "|" + path;
+            return schemas.computeIfAbsent(key, k -> {
+                try {
+                    return extractSchema(path, method, validationType);
+                } catch (Exception e) {
+                    return null;
+                }
+            });
+        }
+
+        private JsonSchema extractSchema(String path, String method, String validationType) {
+            JsonNode paths = root.get("paths");
+            if (paths == null) return null;
+
+            // Try exact match first
+            JsonNode pathNode = paths.get(path);
+
+            // Try path parameters (e.g., /users/{id})
+            if (pathNode == null) {
+                for (Iterator<String> it = paths.fieldNames(); it.hasNext(); ) {
+                    String template = it.next();
+                    if (pathMatches(path, template)) {
+                        pathNode = paths.get(template);
+                        break;
+                    }
+                }
+            }
+
+            if (pathNode == null) return null;
+
+            JsonNode methodNode = pathNode.get(method);
+            if (methodNode == null) return null;
+
+            JsonNode schemaNode;
+
+            if (TYPE_RESPONSE.equals(validationType)) {
+                // Response validation - get from responses section
+                JsonNode responses = methodNode.get("responses");
+                if (responses == null) return null;
+
+                // Try 200, then 201, then default
+                JsonNode responseNode = responses.get("200");
+                if (responseNode == null) responseNode = responses.get("201");
+                if (responseNode == null) responseNode = responses.get("default");
+                if (responseNode == null) return null;
+
+                JsonNode content = responseNode.get("content");
+                if (content == null) return null;
+
+                JsonNode mediaType = content.get("application/json");
+                if (mediaType == null) {
+                    Iterator<JsonNode> it = content.elements();
+                    if (it.hasNext()) mediaType = it.next();
+                }
+                if (mediaType == null) return null;
+
+                schemaNode = mediaType.get("schema");
+            } else {
+                // Request validation - get from requestBody
+                JsonNode requestBody = methodNode.get("requestBody");
+                if (requestBody == null) return null;
+
+                JsonNode content = requestBody.get("content");
+                if (content == null) return null;
+
+                JsonNode mediaType = content.get("application/json");
+                if (mediaType == null) {
+                    Iterator<JsonNode> it = content.elements();
+                    if (it.hasNext()) mediaType = it.next();
+                }
+                if (mediaType == null) return null;
+
+                schemaNode = mediaType.get("schema");
+            }
+
+            if (schemaNode == null) return null;
+
+            // Resolve $ref if present
+            schemaNode = resolveRef(schemaNode);
+
+            // If lenient mode, modify schema to allow additional properties
+            if (allowAdditionalProperties && schemaNode.isObject()) {
+                schemaNode = makeSchemaLenient(schemaNode);
+            }
+
+            // Configure schema validator
+            SchemaValidatorsConfig config = new SchemaValidatorsConfig();
+            config.setTypeLoose(false);
+
+            return factory.getSchema(schemaNode, config);
+        }
+
+        private JsonNode resolveRef(JsonNode node) {
+            if (node == null) return null;
+
+            if (node.has("$ref")) {
+                String ref = node.get("$ref").asText();
+                // Handle #/components/schemas/Name format
+                if (ref.startsWith("#/")) {
+                    String[] parts = ref.substring(2).split("/");
+                    JsonNode current = root;
+                    for (String part : parts) {
+                        current = current.get(part);
+                        if (current == null) return node;
+                    }
+                    return resolveRef(current); // Recursively resolve
+                }
+            }
+            return node;
+        }
+
+        private JsonNode makeSchemaLenient(JsonNode schema) {
+            if (!schema.isObject()) return schema;
+
+            ObjectNode copy = schema.deepCopy();
+
+            // Allow additional properties for object types
+            if (copy.has("type") && "object".equals(copy.get("type").asText())) {
+                copy.put("additionalProperties", true);
+            }
+
+            // If no type but has properties, treat as object
+            if (!copy.has("type") && copy.has("properties")) {
+                copy.put("additionalProperties", true);
+            }
+
+            // Recursively make nested schemas lenient
+            if (copy.has("properties")) {
+                ObjectNode props = (ObjectNode) copy.get("properties");
+                Iterator<String> names = props.fieldNames();
+                while (names.hasNext()) {
+                    String name = names.next();
+                    JsonNode propSchema = props.get(name);
+                    if (propSchema.isObject()) {
+                        props.set(name, makeSchemaLenient(resolveRef(propSchema)));
+                    }
+                }
+            }
+
+            // Handle allOf, anyOf, oneOf
+            for (String keyword : new String[]{"allOf", "anyOf", "oneOf"}) {
+                if (copy.has(keyword) && copy.get(keyword).isArray()) {
+                    for (int i = 0; i < copy.get(keyword).size(); i++) {
+                        JsonNode item = copy.get(keyword).get(i);
+                        if (item.isObject()) {
+                            ((com.fasterxml.jackson.databind.node.ArrayNode) copy.get(keyword))
+                                .set(i, makeSchemaLenient(resolveRef(item)));
+                        }
+                    }
+                }
+            }
+
+            // Handle items for arrays
+            if (copy.has("items") && copy.get("items").isObject()) {
+                copy.set("items", makeSchemaLenient(resolveRef(copy.get("items"))));
+            }
+
+            return copy;
+        }
+
+        private boolean pathMatches(String actualPath, String template) {
+            // Simple path matching with {param} placeholders
+            String regex = template.replaceAll("\\{[^}]+\\}", "[^/]+");
+            return actualPath.matches("^" + regex + "$");
+        }
     }
 }
