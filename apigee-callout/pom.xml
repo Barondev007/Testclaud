@@ -184,47 +184,25 @@
         <!-- It's excluded from swagger-request-validator dependencies -->
 
         <!-- ================================================================== -->
-        <!-- DEPENDENCIES TO UPLOAD AS APIGEE PROXY RESOURCES                  -->
-        <!-- These are NOT available in Apigee Edge 4.52 runtime               -->
+        <!-- DEPENDENCIES PROVIDED BY APIGEE - NOT BUNDLED                     -->
+        <!-- Based on dependency checker results                                -->
         <!-- ================================================================== -->
 
-        <!-- Networknt JSON Schema Validator - LIGHTWEIGHT (~1MB) -->
+        <!-- Networknt JSON Schema Validator - PROVIDED BY APIGEE -->
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
             <version>1.0.87</version>
-            <exclusions>
-                <!-- Exclude Apigee-provided -->
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.dataformat</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <!-- Exclude optional/unused -->
-                <exclusion>
-                    <groupId>com.ethlo.time</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jruby.joni</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jruby.jcodings</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SnakeYAML - Check if provided, otherwise bundle -->
+        <!-- If not provided, change scope to compile -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.33</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Test dependencies -->
@@ -248,60 +226,11 @@
                 </configuration>
             </plugin>
 
-            <!-- Create a single uber-JAR with all necessary dependencies -->
+            <!-- Simple JAR - no dependencies to bundle, all provided by Apigee -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <minimizeJar>true</minimizeJar>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <!-- Signature files -->
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                        <!-- Legal/doc files -->
-                                        <exclude>META-INF/NOTICE*</exclude>
-                                        <exclude>META-INF/LICENSE*</exclude>
-                                        <exclude>META-INF/DEPENDENCIES</exclude>
-                                        <exclude>META-INF/MANIFEST.MF</exclude>
-                                        <!-- Build metadata -->
-                                        <exclude>META-INF/maven/**</exclude>
-                                        <exclude>META-INF/versions/**</exclude>
-                                        <exclude>META-INF/native-image/**</exclude>
-                                        <exclude>META-INF/proguard/**</exclude>
-                                        <!-- Module info (Java 9+) -->
-                                        <exclude>module-info.class</exclude>
-                                        <!-- Kotlin/Android -->
-                                        <exclude>META-INF/*.kotlin_module</exclude>
-                                        <!-- Unused files -->
-                                        <exclude>**/*.html</exclude>
-                                        <exclude>**/*.txt</exclude>
-                                        <exclude>**/*.md</exclude>
-                                        <exclude>**/pom.xml</exclude>
-                                        <exclude>**/pom.properties</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.example.apigee.OpenApiValidatorCallout</mainClass>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
             </plugin>
         </plugins>
     </build>
