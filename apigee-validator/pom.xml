@@ -13,6 +13,14 @@
     <name>BNPPF OpenAPI Validator for Apigee Edge</name>
     <description>OpenAPI Request/Response Validator optimized for Apigee Edge</description>
 
+    <!-- Repository for Apigee dependencies -->
+    <repositories>
+        <repository>
+            <id>apigee-maven-repo</id>
+            <url>https://raw.githubusercontent.com/apigee/api-platform-samples/master/doc-samples/java-cookbook/lib</url>
+        </repository>
+    </repositories>
+
     <properties>
         <!-- Java 8 for Apigee compatibility -->
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -23,6 +31,25 @@
     </properties>
 
     <dependencies>
+        <!-- ================================================================== -->
+        <!-- APIGEE JAVA CALLOUT API - PROVIDED BY APIGEE RUNTIME              -->
+        <!-- ================================================================== -->
+        <dependency>
+            <groupId>com.apigee.edge</groupId>
+            <artifactId>expressions</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.apigee.edge</groupId>
+            <artifactId>message-flow</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ================================================================== -->
+        <!-- ATLASSIAN VALIDATOR - BUNDLED IN JAR                              -->
+        <!-- ================================================================== -->
         <!-- Atlassian Swagger Request Validator Core -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>
