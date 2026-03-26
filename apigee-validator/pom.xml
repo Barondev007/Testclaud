@@ -152,6 +152,54 @@
                     <groupId>com.ethlo.time</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+
+                <!-- ========================================= -->
+                <!-- OPENAPI 2.0 - EXCLUDE (only use 3.0+)    -->
+                <!-- ========================================= -->
+                <exclusion>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-models</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.swagger.parser.v3</groupId>
+                    <artifactId>swagger-parser-v2-converter</artifactId>
+                </exclusion>
+
+                <!-- ========================================= -->
+                <!-- HEAVY LIBS NOT NEEDED FOR BASIC VALIDATION -->
+                <!-- ========================================= -->
+                <!-- Mozilla Rhino - JavaScript engine, not needed -->
+                <exclusion>
+                    <groupId>org.mozilla</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- JONI/JCodings - regex libs, not needed for basic validation -->
+                <exclusion>
+                    <groupId>org.jruby.joni</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jruby.jcodings</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- RE2J - regex, not needed -->
+                <exclusion>
+                    <groupId>com.google.re2j</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Handy URI Templates - not needed -->
+                <exclusion>
+                    <groupId>com.damnhandy</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -262,122 +310,27 @@
                                     </includes>
                                 </filter>
                             </filters>
+                            <!-- Only relocate what's actually included -->
                             <relocations>
-                                <!--
-                                    APIGEE-SPECIFIC RELOCATIONS
-                                    ALL dependencies must be relocated to avoid conflicts with Apigee runtime
-                                -->
-
-                                <!-- ===== GOOGLE PACKAGES ===== -->
-                                <!-- Relocate ALL com.google packages -->
-                                <relocation>
-                                    <pattern>com.google</pattern>
-                                    <shadedPattern>apigee.shaded.com.google</shadedPattern>
-                                </relocation>
-
-                                <!-- ===== JAVAX PACKAGES ===== -->
-                                <!-- Relocate javax.validation -->
-                                <relocation>
-                                    <pattern>javax.validation</pattern>
-                                    <shadedPattern>apigee.shaded.javax.validation</shadedPattern>
-                                </relocation>
-                                <!-- Relocate javax.inject -->
-                                <relocation>
-                                    <pattern>javax.inject</pattern>
-                                    <shadedPattern>apigee.shaded.javax.inject</shadedPattern>
-                                </relocation>
-                                <!-- Relocate javax.mail -->
-                                <relocation>
-                                    <pattern>javax.mail</pattern>
-                                    <shadedPattern>apigee.shaded.javax.mail</shadedPattern>
-                                </relocation>
-
-                                <!-- ===== APACHE PACKAGES ===== -->
-                                <!-- Relocate ALL org.apache packages -->
-                                <relocation>
-                                    <pattern>org.apache</pattern>
-                                    <shadedPattern>apigee.shaded.org.apache</shadedPattern>
-                                </relocation>
-
-                                <!-- ===== CORE DEPENDENCIES ===== -->
-                                <!-- Relocate Atlassian OAI Validator -->
+                                <!-- Atlassian OAI Validator -->
                                 <relocation>
                                     <pattern>com.atlassian.oai</pattern>
-                                    <shadedPattern>apigee.shaded.com.atlassian.oai</shadedPattern>
+                                    <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
                                 </relocation>
-
-                                <!-- Relocate Jackson - CRITICAL: Apigee has older Jackson -->
+                                <!-- Swagger Parser (OpenAPI 3.0) -->
                                 <relocation>
-                                    <pattern>com.fasterxml.jackson</pattern>
-                                    <shadedPattern>apigee.shaded.com.fasterxml.jackson</shadedPattern>
+                                    <pattern>io.swagger.v3</pattern>
+                                    <shadedPattern>shaded.io.swagger.v3</shadedPattern>
                                 </relocation>
-
-                                <!-- Relocate SnakeYAML -->
+                                <!-- SnakeYAML -->
                                 <relocation>
                                     <pattern>org.yaml.snakeyaml</pattern>
-                                    <shadedPattern>apigee.shaded.org.yaml.snakeyaml</shadedPattern>
+                                    <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
                                 </relocation>
-
-                                <!-- Relocate SLF4J -->
-                                <relocation>
-                                    <pattern>org.slf4j</pattern>
-                                    <shadedPattern>apigee.shaded.org.slf4j</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate Swagger Parser -->
-                                <relocation>
-                                    <pattern>io.swagger</pattern>
-                                    <shadedPattern>apigee.shaded.io.swagger</shadedPattern>
-                                </relocation>
-
-                                <!-- ===== JSON SCHEMA VALIDATORS ===== -->
-                                <!-- Relocate JSON Schema Validator (networknt) -->
+                                <!-- JSON Schema Validator -->
                                 <relocation>
                                     <pattern>com.networknt</pattern>
-                                    <shadedPattern>apigee.shaded.com.networknt</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate FGE JSON Schema -->
-                                <relocation>
-                                    <pattern>com.github.fge</pattern>
-                                    <shadedPattern>apigee.shaded.com.github.fge</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate Ethlo time -->
-                                <relocation>
-                                    <pattern>com.ethlo</pattern>
-                                    <shadedPattern>apigee.shaded.com.ethlo</shadedPattern>
-                                </relocation>
-
-                                <!-- ===== OTHER DEPENDENCIES ===== -->
-                                <!-- Relocate Joda Time -->
-                                <relocation>
-                                    <pattern>org.joda</pattern>
-                                    <shadedPattern>apigee.shaded.org.joda</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate Mozilla Rhino -->
-                                <relocation>
-                                    <pattern>org.mozilla</pattern>
-                                    <shadedPattern>apigee.shaded.org.mozilla</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate JONI (regex library) -->
-                                <relocation>
-                                    <pattern>org.joni</pattern>
-                                    <shadedPattern>apigee.shaded.org.joni</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate JCodings -->
-                                <relocation>
-                                    <pattern>org.jcodings</pattern>
-                                    <shadedPattern>apigee.shaded.org.jcodings</shadedPattern>
-                                </relocation>
-
-                                <!-- Relocate Checker Framework -->
-                                <relocation>
-                                    <pattern>org.checkerframework</pattern>
-                                    <shadedPattern>apigee.shaded.org.checkerframework</shadedPattern>
+                                    <shadedPattern>shaded.com.networknt</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
