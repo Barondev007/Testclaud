@@ -172,6 +172,8 @@
                     <groupId>io.swagger.parser.v3</groupId>
                     <artifactId>swagger-parser-v2-converter</artifactId>
                 </exclusion>
+                <!-- NOTE: Keep io.swagger.core.v3 and io.swagger.parser.v3 -->
+                <!-- They are required by Atlassian validator -->
 
                 <!-- ========================================= -->
                 <!-- HEAVY LIBS NOT NEEDED FOR BASIC VALIDATION -->
@@ -302,9 +304,30 @@
                                         <exclude>openapi/**</exclude>
                                     </excludes>
                                 </filter>
-                                <!-- Keep all validator classes needed for runtime -->
+                                <!-- Keep your code -->
                                 <filter>
                                     <artifact>be.bnppf:openapivalidator</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <!-- Keep Atlassian validator classes -->
+                                <filter>
+                                    <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <!-- Keep Swagger v3 parser classes -->
+                                <filter>
+                                    <artifact>io.swagger.parser.v3:*</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <!-- Keep Swagger v3 core classes -->
+                                <filter>
+                                    <artifact>io.swagger.core.v3:*</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
