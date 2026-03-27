@@ -1063,6 +1063,139 @@
         </profile>
 
         <!-- ============================================================== -->
+        <!-- FINAL WORKING PROFILE - All deps, only .class files            -->
+        <!-- ============================================================== -->
+        <profile>
+            <id>waf-safe</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>openapivalidator-WAF-SAFE</finalName>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                                    <minimizeJar>true</minimizeJar>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>be.bnppf:openapivalidator</include>
+                                            <include>com.atlassian.oai:*</include>
+                                            <include>io.swagger.parser.v3:*</include>
+                                            <include>io.swagger.core.v3:*</include>
+                                            <include>com.networknt:*</include>
+                                            <include>org.yaml:snakeyaml</include>
+                                        </includes>
+                                    </artifactSet>
+                                    <filters>
+                                        <!-- Global filter: exclude all non-class files -->
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <!-- Signatures -->
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                                <exclude>META-INF/*.EC</exclude>
+                                                <!-- ALL embedded resources that trigger WAF -->
+                                                <exclude>**/*.json</exclude>
+                                                <exclude>**/*.yaml</exclude>
+                                                <exclude>**/*.yml</exclude>
+                                                <exclude>**/*.xml</exclude>
+                                                <exclude>**/*.properties</exclude>
+                                                <exclude>**/*.xsd</exclude>
+                                                <exclude>**/*.dtd</exclude>
+                                                <exclude>**/*.txt</exclude>
+                                                <exclude>**/*.md</exclude>
+                                                <exclude>**/*.html</exclude>
+                                                <exclude>**/*.js</exclude>
+                                                <exclude>**/*.sh</exclude>
+                                                <exclude>**/*.bat</exclude>
+                                                <exclude>META-INF/LICENSE*</exclude>
+                                                <exclude>META-INF/NOTICE*</exclude>
+                                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                                <exclude>META-INF/maven/**</exclude>
+                                                <exclude>META-INF/versions/**</exclude>
+                                                <exclude>META-INF/native-image/**</exclude>
+                                                <exclude>META-INF/services/**</exclude>
+                                            </excludes>
+                                        </filter>
+                                        <!-- Your code -->
+                                        <filter>
+                                            <artifact>be.bnppf:openapivalidator</artifact>
+                                            <includes>
+                                                <include>**/*.class</include>
+                                            </includes>
+                                        </filter>
+                                        <!-- Atlassian: only classes -->
+                                        <filter>
+                                            <artifact>com.atlassian.oai:*</artifact>
+                                            <includes>
+                                                <include>**/*.class</include>
+                                            </includes>
+                                        </filter>
+                                        <!-- Swagger Parser: only classes -->
+                                        <filter>
+                                            <artifact>io.swagger.parser.v3:*</artifact>
+                                            <includes>
+                                                <include>**/*.class</include>
+                                            </includes>
+                                        </filter>
+                                        <!-- Swagger Core: only classes -->
+                                        <filter>
+                                            <artifact>io.swagger.core.v3:*</artifact>
+                                            <includes>
+                                                <include>**/*.class</include>
+                                            </includes>
+                                        </filter>
+                                        <!-- Networknt: only classes -->
+                                        <filter>
+                                            <artifact>com.networknt:*</artifact>
+                                            <includes>
+                                                <include>**/*.class</include>
+                                            </includes>
+                                        </filter>
+                                        <!-- SnakeYAML: only classes -->
+                                        <filter>
+                                            <artifact>org.yaml:snakeyaml</artifact>
+                                            <includes>
+                                                <include>**/*.class</include>
+                                            </includes>
+                                        </filter>
+                                    </filters>
+                                    <relocations>
+                                        <relocation>
+                                            <pattern>com.atlassian.oai</pattern>
+                                            <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>io.swagger.v3</pattern>
+                                            <shadedPattern>shaded.io.swagger.v3</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>org.yaml.snakeyaml</pattern>
+                                            <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>com.networknt</pattern>
+                                            <shadedPattern>shaded.com.networknt</shadedPattern>
+                                        </relocation>
+                                    </relocations>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- ============================================================== -->
         <!-- PHASE 2: ADD ONE DEPENDENCY AT A TIME (since MINIMAL passes)   -->
         <!-- ============================================================== -->
 
