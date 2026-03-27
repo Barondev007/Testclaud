@@ -134,3 +134,85 @@ All dependencies are relocated to `apigee.shaded.*` to avoid conflicts:
 - SLF4J (NOP logger)
 - Swagger Parser
 - JSON Schema Validator
+
+## WAF Troubleshooting
+
+If your Web Application Firewall (WAF) blocks the JAR deployment, use these commands to analyze the JAR contents.
+
+### Diagnostic Commands
+
+```bash
+cd apigee-validator
+
+# Rebuild the JAR
+mvn clean package -DskipTests
+
+# Check JAR size
+ls -lh target/openapivalidator-1.0.0.jar
+
+# Count files in JAR
+jar -tf target/openapivalidator-1.0.0.jar | wc -l
+
+# List all JAR contents to a file
+jar -tf target/openapivalidator-1.0.0.jar > jar-contents.txt
+```
+
+### Find Potential WAF Triggers
+
+```bash
+# Find suspicious class names (constructors, unsafe, reflection, etc.)
+jar -tf target/openapivalidator-1.0.0.jar | grep -iE "(Unsafe|Constructor|Reflect|Script|Exec|Runtime|Process|Deseriali|URL|Remote)"
+
+# Find embedded data files (should be empty after filtering)
+jar -tf target/openapivalidator-1.0.0.jar | grep -iE "\.(json|yaml|yml|js|sh|xml|properties)$"
+
+# Find non-class files
+jar -tf target/openapivalidator-1.0.0.jar | grep -vE "\.class$"
+
+# Check for SnakeYAML Constructor classes (deserialization risk)
+jar -tf target/openapivalidator-1.0.0.jar | grep -i "constructor"
+
+# Check for URL fetching classes (SSRF risk)
+jar -tf target/openapivalidator-1.0.0.jar | grep -iE "(remote|url|fetch|http)"
+```
+
+### Search for Suspicious Strings in Bytecode
+
+```bash
+# Extract and search for shell/exec patterns
+unzip -p target/openapivalidator-1.0.0.jar | strings | grep -iE "(exec|eval|Runtime|ProcessBuilder|cmd\.exe|/bin/sh)" | head -30
+
+# Search for SQL patterns
+unzip -p target/openapivalidator-1.0.0.jar | strings | grep -iE "(SELECT.*FROM|DROP TABLE|INSERT INTO)" | head -20
+
+# Search for script injection patterns
+unzip -p target/openapivalidator-1.0.0.jar | strings | grep -iE "(<script|javascript:|onclick=)" | head -20
+
+# Search for path traversal patterns
+unzip -p target/openapivalidator-1.0.0.jar | strings | grep -E "\.\./|\.\.\\\\|file://" | head -20
+```
+
+### Common WAF Triggers in This JAR
+
+| Component | Risk | Mitigation |
+|-----------|------|------------|
+| SnakeYAML | Deserialization gadgets | UnsafeConstructor classes excluded |
+| Embedded JSON/YAML | Example specs with patterns | All data files excluded |
+| URL Resolver | SSRF-like patterns | swagger-parser-safe-url-resolver excluded |
+| Reflection libs | Code execution risk | ClassMate excluded |
+
+### If WAF Still Blocks
+
+1. **Get the specific WAF rule ID** from your WAF administrator
+2. **Identify the exact pattern** that triggered the block
+3. **Add targeted exclusions** to the shade plugin in `pom.xml`
+
+Example exclusion in pom.xml:
+```xml
+<filter>
+    <artifact>com.example:problematic-lib</artifact>
+    <excludes>
+        <exclude>**/ProblematicClass.class</exclude>
+    </excludes>
+</filter>
+```
