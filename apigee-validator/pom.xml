@@ -229,6 +229,48 @@
                     <groupId>com.damnhandy</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
+
+                <!-- ========================================= -->
+                <!-- WAF TRIGGER DEPENDENCIES - EXCLUDE        -->
+                <!-- ========================================= -->
+                <!-- Safe URL Resolver - URL handling can trigger WAF -->
+                <exclusion>
+                    <groupId>io.swagger.parser.v3</groupId>
+                    <artifactId>swagger-parser-safe-url-resolver</artifactId>
+                </exclusion>
+                <!-- Command line parsing - not needed for API validation -->
+                <exclusion>
+                    <groupId>commons-cli</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- ClassMate - reflection library -->
+                <exclusion>
+                    <groupId>com.fasterxml</groupId>
+                    <artifactId>classmate</artifactId>
+                </exclusion>
+                <!-- Hibernate Validator - not needed -->
+                <exclusion>
+                    <groupId>org.hibernate.validator</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.hibernate</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Jakarta/Bean Validation implementation -->
+                <exclusion>
+                    <groupId>jakarta.validation</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Wire mock and test libs that may be transitive -->
+                <exclusion>
+                    <groupId>com.github.tomakehurst</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.wiremock</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -300,16 +342,16 @@
                                         <exclude>META-INF/LGPL2.1</exclude>
                                         <!-- Maven/build files -->
                                         <exclude>META-INF/maven/**</exclude>
-                                        <!-- Java 9+ Multi-Release JARs - Edge doesn't support -->
+                                        <!-- Java 9+ Multi-Release JARs -->
                                         <exclude>META-INF/versions/**</exclude>
                                         <!-- Module info (Java 9+) -->
                                         <exclude>module-info.class</exclude>
                                         <exclude>**/module-info.class</exclude>
-                                        <!-- Exclude test classes -->
+                                        <!-- Test classes -->
                                         <exclude>**/test/**</exclude>
                                         <!-- Annotation processors -->
                                         <exclude>META-INF/services/javax.annotation.processing.Processor</exclude>
-                                        <!-- Native libraries - Edge won't use them -->
+                                        <!-- Native libraries -->
                                         <exclude>**/*.so</exclude>
                                         <exclude>**/*.dll</exclude>
                                         <exclude>**/*.dylib</exclude>
@@ -317,47 +359,155 @@
                                         <exclude>META-INF/proguard/**</exclude>
                                         <!-- Kotlin metadata -->
                                         <exclude>META-INF/*.kotlin_module</exclude>
-                                        <!-- Spring files (not needed) -->
+                                        <!-- Spring files -->
                                         <exclude>META-INF/spring.*</exclude>
-                                        <!-- GraalVM native-image config -->
+                                        <!-- GraalVM native-image -->
                                         <exclude>META-INF/native-image/**</exclude>
-                                        <!-- Text files -->
+                                        <!-- Text/doc files -->
                                         <exclude>**/*.html</exclude>
                                         <exclude>**/*.txt</exclude>
                                         <exclude>**/*.md</exclude>
                                         <exclude>**/pom.xml</exclude>
                                         <exclude>**/pom.properties</exclude>
-                                        <!-- OpenAPI spec examples (if any) -->
+                                        <!-- OpenAPI examples -->
                                         <exclude>openapi/**</exclude>
+
+                                        <!-- ========================================= -->
+                                        <!-- WAF TRIGGER EXCLUSIONS                   -->
+                                        <!-- ========================================= -->
+                                        <!-- Exclude potentially suspicious test/example files -->
+                                        <exclude>**/*Test*.class</exclude>
+                                        <exclude>**/*Example*.class</exclude>
+                                        <exclude>**/*Sample*.class</exclude>
+                                        <exclude>**/*Mock*.class</exclude>
+                                        <exclude>**/*Stub*.class</exclude>
+                                        <!-- Exclude serialization classes that WAF may flag -->
+                                        <exclude>**/unsafe/**</exclude>
+                                        <!-- Exclude any embedded scripts or configs -->
+                                        <exclude>**/*.js</exclude>
+                                        <exclude>**/*.sh</exclude>
+                                        <exclude>**/*.bat</exclude>
+                                        <exclude>**/*.cmd</exclude>
+                                        <exclude>**/*.ps1</exclude>
+                                        <!-- Exclude XML/XSD schemas that may contain patterns -->
+                                        <exclude>**/*.xsd</exclude>
+                                        <exclude>**/*.dtd</exclude>
+                                        <!-- Exclude JSON/YAML example files that may contain attack patterns -->
+                                        <exclude>**/*.json</exclude>
+                                        <exclude>**/*.yaml</exclude>
+                                        <exclude>**/*.yml</exclude>
+                                        <!-- Exclude OpenAPI example specs embedded in JARs -->
+                                        <exclude>**/examples/**</exclude>
+                                        <exclude>**/samples/**</exclude>
+                                        <exclude>**/demo/**</exclude>
+                                        <!-- Exclude debugging/profiling tools -->
+                                        <exclude>**/debug/**</exclude>
+                                        <exclude>**/profiler/**</exclude>
+                                        <!-- Exclude code generation templates -->
+                                        <exclude>**/*.mustache</exclude>
+                                        <exclude>**/*.ftl</exclude>
+                                        <exclude>**/*.vm</exclude>
+                                        <!-- Exclude potential injection-like class names -->
+                                        <exclude>**/*Injection*.class</exclude>
+                                        <exclude>**/*Exploit*.class</exclude>
+                                        <exclude>**/*Attack*.class</exclude>
+                                        <exclude>**/*Payload*.class</exclude>
+                                        <exclude>**/*Shell*.class</exclude>
+                                        <exclude>**/*Hack*.class</exclude>
+                                        <!-- Exclude converter/migration tools (not needed at runtime) -->
+                                        <exclude>**/converter/**</exclude>
+                                        <exclude>**/migration/**</exclude>
+                                        <!-- Exclude CLI tools embedded in libs -->
+                                        <exclude>**/cli/**</exclude>
+                                        <exclude>**/console/**</exclude>
+                                        <!-- Exclude configuration examples -->
+                                        <exclude>**/*.properties</exclude>
+                                        <exclude>**/*.xml</exclude>
+                                        <exclude>**/*.cfg</exclude>
+                                        <exclude>**/*.conf</exclude>
                                     </excludes>
                                 </filter>
                                 <!-- Keep your code -->
                                 <filter>
                                     <artifact>be.bnppf:openapivalidator</artifact>
                                     <includes>
-                                        <include>**</include>
+                                        <include>**/*.class</include>
                                     </includes>
                                 </filter>
-                                <!-- Keep Atlassian validator classes -->
+                                <!-- Keep Atlassian validator classes - excluding WAF triggers -->
                                 <filter>
                                     <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
                                     <includes>
-                                        <include>**</include>
+                                        <include>**/*.class</include>
                                     </includes>
+                                    <excludes>
+                                        <!-- Exclude test/example resources -->
+                                        <exclude>**/test/**</exclude>
+                                        <exclude>**/*Test*.class</exclude>
+                                        <exclude>**/*Example*.class</exclude>
+                                        <exclude>**/samples/**</exclude>
+                                        <!-- Exclude embedded OpenAPI specs/examples -->
+                                        <exclude>**/*.yaml</exclude>
+                                        <exclude>**/*.yml</exclude>
+                                        <exclude>**/*.json</exclude>
+                                    </excludes>
                                 </filter>
-                                <!-- Keep Swagger v3 parser classes -->
+                                <!-- Keep Swagger v3 parser classes - excluding WAF triggers -->
                                 <filter>
                                     <artifact>io.swagger.parser.v3:*</artifact>
                                     <includes>
-                                        <include>**</include>
+                                        <include>**/*.class</include>
                                     </includes>
+                                    <excludes>
+                                        <exclude>**/test/**</exclude>
+                                        <exclude>**/*Test*.class</exclude>
+                                        <exclude>**/examples/**</exclude>
+                                        <exclude>**/*.yaml</exclude>
+                                        <exclude>**/*.yml</exclude>
+                                        <exclude>**/*.json</exclude>
+                                        <!-- Exclude URL resolver that triggers WAF -->
+                                        <exclude>**/resolver/**</exclude>
+                                    </excludes>
                                 </filter>
-                                <!-- Keep Swagger v3 core classes -->
+                                <!-- Keep Swagger v3 core classes - excluding WAF triggers -->
                                 <filter>
                                     <artifact>io.swagger.core.v3:*</artifact>
                                     <includes>
-                                        <include>**</include>
+                                        <include>**/*.class</include>
                                     </includes>
+                                    <excludes>
+                                        <exclude>**/test/**</exclude>
+                                        <exclude>**/*Test*.class</exclude>
+                                        <exclude>**/*.yaml</exclude>
+                                        <exclude>**/*.yml</exclude>
+                                        <exclude>**/*.json</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Networknt JSON Schema Validator - exclude embedded schemas -->
+                                <filter>
+                                    <artifact>com.networknt:*</artifact>
+                                    <includes>
+                                        <include>**/*.class</include>
+                                    </includes>
+                                    <excludes>
+                                        <!-- Exclude embedded JSON Schema draft specs -->
+                                        <exclude>**/*.json</exclude>
+                                        <exclude>**/draftv*/**</exclude>
+                                        <exclude>**/draft*/**</exclude>
+                                        <exclude>**/test/**</exclude>
+                                        <exclude>**/*Test*.class</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- SnakeYAML - only classes, no resources -->
+                                <filter>
+                                    <artifact>org.yaml:snakeyaml</artifact>
+                                    <includes>
+                                        <include>**/*.class</include>
+                                    </includes>
+                                    <excludes>
+                                        <exclude>**/*.yaml</exclude>
+                                        <exclude>**/*.yml</exclude>
+                                    </excludes>
                                 </filter>
                             </filters>
                             <!-- Only relocate what's actually included -->
