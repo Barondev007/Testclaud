@@ -507,6 +507,23 @@
                                     <excludes>
                                         <exclude>**/*.yaml</exclude>
                                         <exclude>**/*.yml</exclude>
+                                        <!-- Exclude unsafe constructors that WAF may flag -->
+                                        <exclude>**/constructor/UnsafeConstructor*.class</exclude>
+                                        <exclude>**/external/**</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Exclude Apache Commons classes if any slip through -->
+                                <filter>
+                                    <artifact>org.apache.commons:*</artifact>
+                                    <excludes>
+                                        <exclude>**</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Exclude any HTTP client classes -->
+                                <filter>
+                                    <artifact>org.apache.httpcomponents:*</artifact>
+                                    <excludes>
+                                        <exclude>**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
