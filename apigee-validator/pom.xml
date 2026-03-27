@@ -5,15 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>be.bnppf</groupId>
-    <!-- Simple name without hyphens for Edge compatibility -->
     <artifactId>openapivalidator</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>BNPPF OpenAPI Validator for Apigee Edge</name>
-    <description>OpenAPI Request/Response Validator optimized for Apigee Edge</description>
+    <description>OpenAPI Request/Response Validator optimized for Apigee Edge (WAF-safe)</description>
 
-    <!-- Repository for Apigee dependencies -->
     <repositories>
         <repository>
             <id>apigee-maven-repo</id>
@@ -22,11 +20,9 @@
     </repositories>
 
     <properties>
-        <!-- Java 8 for Apigee compatibility -->
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- Use older version for better compatibility -->
         <swagger-request-validator.version>2.19.4</swagger-request-validator.version>
     </properties>
 
@@ -50,17 +46,12 @@
         <!-- ================================================================== -->
         <!-- ATLASSIAN VALIDATOR - BUNDLED IN JAR                              -->
         <!-- ================================================================== -->
-        <!-- Atlassian Swagger Request Validator Core -->
         <dependency>
             <groupId>com.atlassian.oai</groupId>
             <artifactId>swagger-request-validator-core</artifactId>
             <version>${swagger-request-validator.version}</version>
             <exclusions>
-                <!-- ========================================= -->
-                <!-- APIGEE-PROVIDED LIBRARIES - EXCLUDE ALL  -->
-                <!-- ========================================= -->
-
-                <!-- SLF4J - Apigee has its own logging -->
+                <!-- APIGEE-PROVIDED LIBRARIES -->
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>*</artifactId>
@@ -69,8 +60,6 @@
                     <groupId>ch.qos.logback</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Guava - Apigee bundles its own version -->
                 <exclusion>
                     <groupId>com.google.guava</groupId>
                     <artifactId>*</artifactId>
@@ -91,8 +80,6 @@
                     <groupId>com.google.j2objc</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Jackson - Apigee provides 2.12.x -->
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>*</artifactId>
@@ -105,8 +92,6 @@
                     <groupId>com.fasterxml.jackson.datatype</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Apache Commons - Apigee provides these -->
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
                     <artifactId>*</artifactId>
@@ -127,20 +112,14 @@
                     <groupId>commons-collections</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Apache HttpClient - Apigee provides -->
                 <exclusion>
                     <groupId>org.apache.httpcomponents</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Joda-Time - Apigee provides -->
                 <exclusion>
                     <groupId>joda-time</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Javax APIs - Apigee provides -->
                 <exclusion>
                     <groupId>javax.annotation</groupId>
                     <artifactId>*</artifactId>
@@ -161,8 +140,6 @@
                     <groupId>com.sun.mail</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-
-                <!-- Other exclusions -->
                 <exclusion>
                     <groupId>org.checkerframework</groupId>
                     <artifactId>*</artifactId>
@@ -180,9 +157,7 @@
                     <artifactId>*</artifactId>
                 </exclusion>
 
-                <!-- ========================================= -->
-                <!-- OPENAPI 2.0 - EXCLUDE (only use 3.0+)    -->
-                <!-- ========================================= -->
+                <!-- OPENAPI 2.0 - EXCLUDE (only use 3.0+) -->
                 <exclusion>
                     <groupId>io.swagger</groupId>
                     <artifactId>swagger-models</artifactId>
@@ -199,18 +174,12 @@
                     <groupId>io.swagger.parser.v3</groupId>
                     <artifactId>swagger-parser-v2-converter</artifactId>
                 </exclusion>
-                <!-- NOTE: Keep io.swagger.core.v3 and io.swagger.parser.v3 -->
-                <!-- They are required by Atlassian validator -->
 
-                <!-- ========================================= -->
-                <!-- HEAVY LIBS NOT NEEDED FOR BASIC VALIDATION -->
-                <!-- ========================================= -->
-                <!-- Mozilla Rhino - JavaScript engine, not needed -->
+                <!-- HEAVY LIBS NOT NEEDED -->
                 <exclusion>
                     <groupId>org.mozilla</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- JONI/JCodings - regex libs, not needed for basic validation -->
                 <exclusion>
                     <groupId>org.jruby.joni</groupId>
                     <artifactId>*</artifactId>
@@ -219,36 +188,24 @@
                     <groupId>org.jruby.jcodings</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- RE2J - regex, not needed -->
                 <exclusion>
                     <groupId>com.google.re2j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Handy URI Templates - not needed -->
-                <exclusion>
-                    <groupId>com.damnhandy</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
 
-                <!-- ========================================= -->
-                <!-- WAF TRIGGER DEPENDENCIES - EXCLUDE        -->
-                <!-- ========================================= -->
-                <!-- Safe URL Resolver - URL handling can trigger WAF -->
+                <!-- WAF TRIGGER DEPENDENCIES -->
                 <exclusion>
                     <groupId>io.swagger.parser.v3</groupId>
                     <artifactId>swagger-parser-safe-url-resolver</artifactId>
                 </exclusion>
-                <!-- Command line parsing - not needed for API validation -->
                 <exclusion>
                     <groupId>commons-cli</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- ClassMate - reflection library -->
                 <exclusion>
                     <groupId>com.fasterxml</groupId>
                     <artifactId>classmate</artifactId>
                 </exclusion>
-                <!-- Hibernate Validator - not needed -->
                 <exclusion>
                     <groupId>org.hibernate.validator</groupId>
                     <artifactId>*</artifactId>
@@ -257,12 +214,10 @@
                     <groupId>org.hibernate</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Jakarta/Bean Validation implementation -->
                 <exclusion>
                     <groupId>jakarta.validation</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- Wire mock and test libs that may be transitive -->
                 <exclusion>
                     <groupId>com.github.tomakehurst</groupId>
                     <artifactId>*</artifactId>
@@ -274,7 +229,7 @@
             </exclusions>
         </dependency>
 
-        <!-- SLF4J - PROVIDED BY APIGEE (compile scope for IDE, excluded from shaded JAR) -->
+        <!-- SLF4J - PROVIDED BY APIGEE -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -303,7 +258,10 @@
                 </configuration>
             </plugin>
 
-            <!-- Shade plugin optimized for Apigee -->
+            <!-- ============================================================== -->
+            <!-- SHADE PLUGIN - WAF-SAFE CONFIGURATION                          -->
+            <!-- Only includes .class files, excludes all embedded resources    -->
+            <!-- ============================================================== -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -316,235 +274,107 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <!-- Enable minimizeJar for smaller JAR size -->
                             <minimizeJar>true</minimizeJar>
-                            <!-- Minimal transformers for Edge compatibility -->
                             <transformers>
-                                <!-- Simple manifest without mainClass (library JAR) -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
+                            <artifactSet>
+                                <includes>
+                                    <include>be.bnppf:openapivalidator</include>
+                                    <include>com.atlassian.oai:*</include>
+                                    <include>io.swagger.parser.v3:*</include>
+                                    <include>io.swagger.core.v3:*</include>
+                                    <include>com.networknt:*</include>
+                                    <include>org.yaml:snakeyaml</include>
+                                </includes>
+                            </artifactSet>
                             <filters>
+                                <!-- Global: exclude all non-class files (WAF triggers) -->
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
-                                        <!-- Security signatures - CRITICAL for Edge -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
                                         <exclude>META-INF/*.EC</exclude>
-                                        <exclude>META-INF/MANIFEST.MF</exclude>
-                                        <!-- Legal files -->
-                                        <exclude>META-INF/LICENSE*</exclude>
-                                        <exclude>META-INF/NOTICE*</exclude>
-                                        <exclude>META-INF/DEPENDENCIES</exclude>
-                                        <exclude>META-INF/AL2.0</exclude>
-                                        <exclude>META-INF/LGPL2.1</exclude>
-                                        <!-- Maven/build files -->
-                                        <exclude>META-INF/maven/**</exclude>
-                                        <!-- Java 9+ Multi-Release JARs -->
-                                        <exclude>META-INF/versions/**</exclude>
-                                        <!-- Module info (Java 9+) -->
-                                        <exclude>module-info.class</exclude>
-                                        <exclude>**/module-info.class</exclude>
-                                        <!-- Test classes -->
-                                        <exclude>**/test/**</exclude>
-                                        <!-- Annotation processors -->
-                                        <exclude>META-INF/services/javax.annotation.processing.Processor</exclude>
-                                        <!-- Native libraries -->
-                                        <exclude>**/*.so</exclude>
-                                        <exclude>**/*.dll</exclude>
-                                        <exclude>**/*.dylib</exclude>
-                                        <!-- Proguard/R8 files -->
-                                        <exclude>META-INF/proguard/**</exclude>
-                                        <!-- Kotlin metadata -->
-                                        <exclude>META-INF/*.kotlin_module</exclude>
-                                        <!-- Spring files -->
-                                        <exclude>META-INF/spring.*</exclude>
-                                        <!-- GraalVM native-image -->
-                                        <exclude>META-INF/native-image/**</exclude>
-                                        <!-- Text/doc files -->
-                                        <exclude>**/*.html</exclude>
-                                        <exclude>**/*.txt</exclude>
-                                        <exclude>**/*.md</exclude>
-                                        <exclude>**/pom.xml</exclude>
-                                        <exclude>**/pom.properties</exclude>
-                                        <!-- OpenAPI examples -->
-                                        <exclude>openapi/**</exclude>
-
-                                        <!-- ========================================= -->
-                                        <!-- WAF TRIGGER EXCLUSIONS                   -->
-                                        <!-- ========================================= -->
-                                        <!-- Exclude potentially suspicious test/example files -->
-                                        <exclude>**/*Test*.class</exclude>
-                                        <exclude>**/*Example*.class</exclude>
-                                        <exclude>**/*Sample*.class</exclude>
-                                        <exclude>**/*Mock*.class</exclude>
-                                        <exclude>**/*Stub*.class</exclude>
-                                        <!-- Exclude serialization classes that WAF may flag -->
-                                        <exclude>**/unsafe/**</exclude>
-                                        <!-- Exclude any embedded scripts or configs -->
-                                        <exclude>**/*.js</exclude>
-                                        <exclude>**/*.sh</exclude>
-                                        <exclude>**/*.bat</exclude>
-                                        <exclude>**/*.cmd</exclude>
-                                        <exclude>**/*.ps1</exclude>
-                                        <!-- Exclude XML/XSD schemas that may contain patterns -->
-                                        <exclude>**/*.xsd</exclude>
-                                        <exclude>**/*.dtd</exclude>
-                                        <!-- Exclude JSON/YAML example files that may contain attack patterns -->
                                         <exclude>**/*.json</exclude>
                                         <exclude>**/*.yaml</exclude>
                                         <exclude>**/*.yml</exclude>
-                                        <!-- Exclude OpenAPI example specs embedded in JARs -->
-                                        <exclude>**/examples/**</exclude>
-                                        <exclude>**/samples/**</exclude>
-                                        <exclude>**/demo/**</exclude>
-                                        <!-- Exclude debugging/profiling tools -->
-                                        <exclude>**/debug/**</exclude>
-                                        <exclude>**/profiler/**</exclude>
-                                        <!-- Exclude code generation templates -->
-                                        <exclude>**/*.mustache</exclude>
-                                        <exclude>**/*.ftl</exclude>
-                                        <exclude>**/*.vm</exclude>
-                                        <!-- Exclude potential injection-like class names -->
-                                        <exclude>**/*Injection*.class</exclude>
-                                        <exclude>**/*Exploit*.class</exclude>
-                                        <exclude>**/*Attack*.class</exclude>
-                                        <exclude>**/*Payload*.class</exclude>
-                                        <exclude>**/*Shell*.class</exclude>
-                                        <exclude>**/*Hack*.class</exclude>
-                                        <!-- Exclude converter/migration tools (not needed at runtime) -->
-                                        <exclude>**/converter/**</exclude>
-                                        <exclude>**/migration/**</exclude>
-                                        <!-- Exclude CLI tools embedded in libs -->
-                                        <exclude>**/cli/**</exclude>
-                                        <exclude>**/console/**</exclude>
-                                        <!-- Exclude configuration examples -->
-                                        <exclude>**/*.properties</exclude>
                                         <exclude>**/*.xml</exclude>
-                                        <exclude>**/*.cfg</exclude>
-                                        <exclude>**/*.conf</exclude>
+                                        <exclude>**/*.properties</exclude>
+                                        <exclude>**/*.xsd</exclude>
+                                        <exclude>**/*.dtd</exclude>
+                                        <exclude>**/*.txt</exclude>
+                                        <exclude>**/*.md</exclude>
+                                        <exclude>**/*.html</exclude>
+                                        <exclude>**/*.js</exclude>
+                                        <exclude>**/*.sh</exclude>
+                                        <exclude>**/*.bat</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                        <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <exclude>META-INF/maven/**</exclude>
+                                        <exclude>META-INF/versions/**</exclude>
+                                        <exclude>META-INF/native-image/**</exclude>
+                                        <exclude>META-INF/services/**</exclude>
                                     </excludes>
                                 </filter>
-                                <!-- Keep your code -->
+                                <!-- Your code: only classes -->
                                 <filter>
                                     <artifact>be.bnppf:openapivalidator</artifact>
                                     <includes>
                                         <include>**/*.class</include>
                                     </includes>
                                 </filter>
-                                <!-- Keep Atlassian validator classes - excluding WAF triggers -->
+                                <!-- Atlassian: only classes -->
                                 <filter>
-                                    <artifact>com.atlassian.oai:swagger-request-validator-core</artifact>
+                                    <artifact>com.atlassian.oai:*</artifact>
                                     <includes>
                                         <include>**/*.class</include>
                                     </includes>
-                                    <excludes>
-                                        <!-- Exclude test/example resources -->
-                                        <exclude>**/test/**</exclude>
-                                        <exclude>**/*Test*.class</exclude>
-                                        <exclude>**/*Example*.class</exclude>
-                                        <exclude>**/samples/**</exclude>
-                                        <!-- Exclude embedded OpenAPI specs/examples -->
-                                        <exclude>**/*.yaml</exclude>
-                                        <exclude>**/*.yml</exclude>
-                                        <exclude>**/*.json</exclude>
-                                    </excludes>
                                 </filter>
-                                <!-- Keep Swagger v3 parser classes - excluding WAF triggers -->
+                                <!-- Swagger Parser: only classes -->
                                 <filter>
                                     <artifact>io.swagger.parser.v3:*</artifact>
                                     <includes>
                                         <include>**/*.class</include>
                                     </includes>
-                                    <excludes>
-                                        <exclude>**/test/**</exclude>
-                                        <exclude>**/*Test*.class</exclude>
-                                        <exclude>**/examples/**</exclude>
-                                        <exclude>**/*.yaml</exclude>
-                                        <exclude>**/*.yml</exclude>
-                                        <exclude>**/*.json</exclude>
-                                        <!-- Exclude URL resolver that triggers WAF -->
-                                        <exclude>**/resolver/**</exclude>
-                                    </excludes>
                                 </filter>
-                                <!-- Keep Swagger v3 core classes - excluding WAF triggers -->
+                                <!-- Swagger Core: only classes -->
                                 <filter>
                                     <artifact>io.swagger.core.v3:*</artifact>
                                     <includes>
                                         <include>**/*.class</include>
                                     </includes>
-                                    <excludes>
-                                        <exclude>**/test/**</exclude>
-                                        <exclude>**/*Test*.class</exclude>
-                                        <exclude>**/*.yaml</exclude>
-                                        <exclude>**/*.yml</exclude>
-                                        <exclude>**/*.json</exclude>
-                                    </excludes>
                                 </filter>
-                                <!-- Networknt JSON Schema Validator - exclude embedded schemas -->
+                                <!-- Networknt: only classes -->
                                 <filter>
                                     <artifact>com.networknt:*</artifact>
                                     <includes>
                                         <include>**/*.class</include>
                                     </includes>
-                                    <excludes>
-                                        <!-- Exclude embedded JSON Schema draft specs -->
-                                        <exclude>**/*.json</exclude>
-                                        <exclude>**/draftv*/**</exclude>
-                                        <exclude>**/draft*/**</exclude>
-                                        <exclude>**/test/**</exclude>
-                                        <exclude>**/*Test*.class</exclude>
-                                    </excludes>
                                 </filter>
-                                <!-- SnakeYAML - only classes, no resources -->
+                                <!-- SnakeYAML: only classes -->
                                 <filter>
                                     <artifact>org.yaml:snakeyaml</artifact>
                                     <includes>
                                         <include>**/*.class</include>
                                     </includes>
-                                    <excludes>
-                                        <exclude>**/*.yaml</exclude>
-                                        <exclude>**/*.yml</exclude>
-                                        <!-- Exclude unsafe constructors that WAF may flag -->
-                                        <exclude>**/constructor/UnsafeConstructor*.class</exclude>
-                                        <exclude>**/external/**</exclude>
-                                    </excludes>
-                                </filter>
-                                <!-- Exclude Apache Commons classes if any slip through -->
-                                <filter>
-                                    <artifact>org.apache.commons:*</artifact>
-                                    <excludes>
-                                        <exclude>**</exclude>
-                                    </excludes>
-                                </filter>
-                                <!-- Exclude any HTTP client classes -->
-                                <filter>
-                                    <artifact>org.apache.httpcomponents:*</artifact>
-                                    <excludes>
-                                        <exclude>**</exclude>
-                                    </excludes>
                                 </filter>
                             </filters>
-                            <!-- Only relocate what's actually included -->
                             <relocations>
-                                <!-- Atlassian OAI Validator -->
                                 <relocation>
                                     <pattern>com.atlassian.oai</pattern>
                                     <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
                                 </relocation>
-                                <!-- Swagger Parser (OpenAPI 3.0) -->
                                 <relocation>
                                     <pattern>io.swagger.v3</pattern>
                                     <shadedPattern>shaded.io.swagger.v3</shadedPattern>
                                 </relocation>
-                                <!-- SnakeYAML -->
                                 <relocation>
                                     <pattern>org.yaml.snakeyaml</pattern>
                                     <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
                                 </relocation>
-                                <!-- JSON Schema Validator -->
                                 <relocation>
                                     <pattern>com.networknt</pattern>
                                     <shadedPattern>shaded.com.networknt</shadedPattern>
@@ -562,1129 +392,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <!-- ================================================================== -->
-    <!-- WAF TESTING PROFILES                                               -->
-    <!-- Build different versions to identify which dependency triggers WAF -->
-    <!-- Usage: mvn clean package -P<profile-name> -DskipTests              -->
-    <!-- ================================================================== -->
-    <profiles>
-        <!-- ============================================================== -->
-        <!-- PHASE 3: INCREMENTAL COMBINATIONS (when all ONLY-* pass)       -->
-        <!-- ============================================================== -->
-
-        <!-- COMBO 1: SnakeYAML + Networknt -->
-        <profile>
-            <id>waf-test-combo-1</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-COMBO1-SNAKE-NET</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>org.yaml:snakeyaml</include>
-                                            <include>com.networknt:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- COMBO 2: SnakeYAML + Networknt + Swagger Core -->
-        <profile>
-            <id>waf-test-combo-2</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-COMBO2-SNAKE-NET-CORE</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>org.yaml:snakeyaml</include>
-                                            <include>com.networknt:*</include>
-                                            <include>io.swagger.core.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- COMBO 3: SnakeYAML + Networknt + Swagger Core + Swagger Parser -->
-        <profile>
-            <id>waf-test-combo-3</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-COMBO3-SNAKE-NET-CORE-PARSER</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>org.yaml:snakeyaml</include>
-                                            <include>com.networknt:*</include>
-                                            <include>io.swagger.core.v3:*</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- COMBO 4: All deps (SnakeYAML + Networknt + Swagger Core + Parser + Atlassian) -->
-        <profile>
-            <id>waf-test-combo-4</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-COMBO4-ALL</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>org.yaml:snakeyaml</include>
-                                            <include>com.networknt:*</include>
-                                            <include>io.swagger.core.v3:*</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                            <include>com.atlassian.oai:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- COMBO 5: Atlassian + Swagger Parser (likely combo that pulls transitive deps) -->
-        <profile>
-            <id>waf-test-combo-5</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-COMBO5-ATLASSIAN-PARSER</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- ============================================================== -->
-        <!-- PHASE 4: ATLASSIAN + PARSER WITH AGGRESSIVE FILTERING          -->
-        <!-- Since COMBO5 (Atlassian+Parser) fails, find the trigger        -->
-        <!-- ============================================================== -->
-
-        <!-- PHASE4-A: Atlassian + Parser, exclude commons-lang3 -->
-        <profile>
-            <id>waf-test-phase4-no-commons</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-PHASE4-NO-COMMONS</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                        </includes>
-                                        <excludes>
-                                            <exclude>org.apache.commons:*</exclude>
-                                            <exclude>commons-lang:*</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                                <exclude>org/apache/commons/**</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- PHASE4-B: Atlassian + Parser, exclude swagger-parser submodules -->
-        <profile>
-            <id>waf-test-phase4-no-parser-core</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-PHASE4-NO-PARSER-CORE</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                            <include>io.swagger.parser.v3:swagger-parser</include>
-                                        </includes>
-                                        <excludes>
-                                            <exclude>io.swagger.parser.v3:swagger-parser-core</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- PHASE4-C: Atlassian + Parser, aggressive class filtering -->
-        <profile>
-            <id>waf-test-phase4-filtered</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-PHASE4-FILTERED</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                                <!-- Aggressive WAF exclusions -->
-                                                <exclude>**/util/Remote*.class</exclude>
-                                                <exclude>**/util/Url*.class</exclude>
-                                                <exclude>**/ResolverCache*.class</exclude>
-                                                <exclude>**/RefUtils*.class</exclude>
-                                                <exclude>**/AuthorizationValue*.class</exclude>
-                                                <exclude>**/*Deserializer*.class</exclude>
-                                                <exclude>**/*Serializer*.class</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- PHASE4-D: Only Atlassian validator classes (no parser integration) -->
-        <profile>
-            <id>waf-test-phase4-atlassian-only-classes</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-PHASE4-ATLASSIAN-CLASSES</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>com.atlassian.oai:*</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                            <excludes>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                                <exclude>**/*.xml</exclude>
-                                                <exclude>**/*.properties</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- PHASE4-E: Parser only classes (no Atlassian) -->
-        <profile>
-            <id>waf-test-phase4-parser-only-classes</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-PHASE4-PARSER-CLASSES</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>io.swagger.parser.v3:*</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                            <excludes>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                                <exclude>**/*.xml</exclude>
-                                                <exclude>**/*.properties</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- ============================================================== -->
-        <!-- FINAL WORKING PROFILE - All deps, only .class files            -->
-        <!-- ============================================================== -->
-        <profile>
-            <id>waf-safe</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-WAF-SAFE</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                            <include>io.swagger.core.v3:*</include>
-                                            <include>com.networknt:*</include>
-                                            <include>org.yaml:snakeyaml</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <!-- Global filter: exclude all non-class files -->
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <!-- Signatures -->
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>META-INF/*.EC</exclude>
-                                                <!-- ALL embedded resources that trigger WAF -->
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                                <exclude>**/*.xml</exclude>
-                                                <exclude>**/*.properties</exclude>
-                                                <exclude>**/*.xsd</exclude>
-                                                <exclude>**/*.dtd</exclude>
-                                                <exclude>**/*.txt</exclude>
-                                                <exclude>**/*.md</exclude>
-                                                <exclude>**/*.html</exclude>
-                                                <exclude>**/*.js</exclude>
-                                                <exclude>**/*.sh</exclude>
-                                                <exclude>**/*.bat</exclude>
-                                                <exclude>META-INF/LICENSE*</exclude>
-                                                <exclude>META-INF/NOTICE*</exclude>
-                                                <exclude>META-INF/DEPENDENCIES</exclude>
-                                                <exclude>META-INF/maven/**</exclude>
-                                                <exclude>META-INF/versions/**</exclude>
-                                                <exclude>META-INF/native-image/**</exclude>
-                                                <exclude>META-INF/services/**</exclude>
-                                            </excludes>
-                                        </filter>
-                                        <!-- Your code -->
-                                        <filter>
-                                            <artifact>be.bnppf:openapivalidator</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                        </filter>
-                                        <!-- Atlassian: only classes -->
-                                        <filter>
-                                            <artifact>com.atlassian.oai:*</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                        </filter>
-                                        <!-- Swagger Parser: only classes -->
-                                        <filter>
-                                            <artifact>io.swagger.parser.v3:*</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                        </filter>
-                                        <!-- Swagger Core: only classes -->
-                                        <filter>
-                                            <artifact>io.swagger.core.v3:*</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                        </filter>
-                                        <!-- Networknt: only classes -->
-                                        <filter>
-                                            <artifact>com.networknt:*</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                        </filter>
-                                        <!-- SnakeYAML: only classes -->
-                                        <filter>
-                                            <artifact>org.yaml:snakeyaml</artifact>
-                                            <includes>
-                                                <include>**/*.class</include>
-                                            </includes>
-                                        </filter>
-                                    </filters>
-                                    <relocations>
-                                        <relocation>
-                                            <pattern>com.atlassian.oai</pattern>
-                                            <shadedPattern>shaded.com.atlassian.oai</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>io.swagger.v3</pattern>
-                                            <shadedPattern>shaded.io.swagger.v3</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>org.yaml.snakeyaml</pattern>
-                                            <shadedPattern>shaded.org.yaml.snakeyaml</shadedPattern>
-                                        </relocation>
-                                        <relocation>
-                                            <pattern>com.networknt</pattern>
-                                            <shadedPattern>shaded.com.networknt</shadedPattern>
-                                        </relocation>
-                                    </relocations>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- ============================================================== -->
-        <!-- PHASE 2: ADD ONE DEPENDENCY AT A TIME (since MINIMAL passes)   -->
-        <!-- ============================================================== -->
-
-        <!-- TEST: ONLY SnakeYAML -->
-        <profile>
-            <id>waf-test-only-snakeyaml</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-ONLY-SNAKEYAML</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>org.yaml:snakeyaml</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST: ONLY Networknt JSON Schema Validator -->
-        <profile>
-            <id>waf-test-only-networknt</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-ONLY-NETWORKNT</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.networknt:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST: ONLY Swagger Parser v3 -->
-        <profile>
-            <id>waf-test-only-swagger-parser</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-ONLY-SWAGGER-PARSER</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>io.swagger.parser.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST: ONLY Swagger Core v3 -->
-        <profile>
-            <id>waf-test-only-swagger-core</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-ONLY-SWAGGER-CORE</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>io.swagger.core.v3:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST: ONLY Atlassian Validator -->
-        <profile>
-            <id>waf-test-only-atlassian</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-ONLY-ATLASSIAN</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                            <include>com.atlassian.oai:*</include>
-                                        </includes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- ============================================================== -->
-        <!-- PHASE 1: EXCLUDE ONE DEPENDENCY AT A TIME                      -->
-        <!-- ============================================================== -->
-
-        <!-- TEST 1: No SnakeYAML - excludes YAML parsing -->
-        <profile>
-            <id>waf-test-no-snakeyaml</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-NO-SNAKEYAML</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <artifactSet>
-                                        <excludes>
-                                            <exclude>org.yaml:snakeyaml</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST 2: No Networknt JSON Schema Validator -->
-        <profile>
-            <id>waf-test-no-networknt</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-NO-NETWORKNT</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <artifactSet>
-                                        <excludes>
-                                            <exclude>com.networknt:*</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST 3: No Swagger Parser (only core models) -->
-        <profile>
-            <id>waf-test-no-swagger-parser</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-NO-SWAGGER-PARSER</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <artifactSet>
-                                        <excludes>
-                                            <exclude>io.swagger.parser.v3:*</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST 4: No Atlassian Validator (only swagger libs) -->
-        <profile>
-            <id>waf-test-no-atlassian</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-NO-ATLASSIAN</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <artifactSet>
-                                        <excludes>
-                                            <exclude>com.atlassian.oai:*</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST 5: Minimal - Only your code (no dependencies) -->
-        <profile>
-            <id>waf-test-minimal</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-MINIMAL</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <artifactSet>
-                                        <excludes>
-                                            <exclude>*:*</exclude>
-                                        </excludes>
-                                        <includes>
-                                            <include>be.bnppf:openapivalidator</include>
-                                        </includes>
-                                    </artifactSet>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!-- TEST 6: No Swagger Core v3 -->
-        <profile>
-            <id>waf-test-no-swagger-core</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <finalName>openapivalidator-NO-SWAGGER-CORE</finalName>
-                                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                                    <minimizeJar>true</minimizeJar>
-                                    <artifactSet>
-                                        <excludes>
-                                            <exclude>io.swagger.core.v3:*</exclude>
-                                        </excludes>
-                                    </artifactSet>
-                                    <filters>
-                                        <filter>
-                                            <artifact>*:*</artifact>
-                                            <excludes>
-                                                <exclude>META-INF/*.SF</exclude>
-                                                <exclude>META-INF/*.DSA</exclude>
-                                                <exclude>META-INF/*.RSA</exclude>
-                                                <exclude>**/*.json</exclude>
-                                                <exclude>**/*.yaml</exclude>
-                                                <exclude>**/*.yml</exclude>
-                                            </excludes>
-                                        </filter>
-                                    </filters>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
