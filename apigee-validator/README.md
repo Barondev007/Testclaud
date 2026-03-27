@@ -323,6 +323,39 @@ COMBO5 (Atlassian+Parser)    → PASS / FAIL
 First FAIL = that combination brings problematic transitive dependencies
 ```
 
+#### Phase 4: Deep Analysis (when Atlassian + Parser fails)
+
+Since COMBO4 and COMBO5 fail but individual deps pass, test with aggressive filtering:
+
+```bash
+mvn clean package -Pwaf-test-phase4-no-commons -DskipTests
+mvn clean package -Pwaf-test-phase4-no-parser-core -DskipTests
+mvn clean package -Pwaf-test-phase4-filtered -DskipTests
+mvn clean package -Pwaf-test-phase4-atlassian-only-classes -DskipTests
+mvn clean package -Pwaf-test-phase4-parser-only-classes -DskipTests
+```
+
+**Phase 4 - Deep filtering:**
+
+| Profile | JAR Name | What's Different |
+|---------|----------|------------------|
+| `waf-test-phase4-no-commons` | `openapivalidator-PHASE4-NO-COMMONS.jar` | Atlassian+Parser, exclude commons-lang |
+| `waf-test-phase4-no-parser-core` | `openapivalidator-PHASE4-NO-PARSER-CORE.jar` | Exclude swagger-parser-core submodule |
+| `waf-test-phase4-filtered` | `openapivalidator-PHASE4-FILTERED.jar` | Aggressive class filtering (Remote*, Url*, etc.) |
+| `waf-test-phase4-atlassian-only-classes` | `openapivalidator-PHASE4-ATLASSIAN-CLASSES.jar` | Only Atlassian .class files |
+| `waf-test-phase4-parser-only-classes` | `openapivalidator-PHASE4-PARSER-CLASSES.jar` | Only Parser .class files |
+
+**Testing Procedure:**
+```
+PHASE4-NO-COMMONS          → PASS / FAIL  (commons-lang triggers WAF?)
+PHASE4-NO-PARSER-CORE      → PASS / FAIL  (parser-core triggers WAF?)
+PHASE4-FILTERED            → PASS / FAIL  (URL/Remote classes trigger WAF?)
+PHASE4-ATLASSIAN-CLASSES   → PASS / FAIL  (Atlassian resources trigger WAF?)
+PHASE4-PARSER-CLASSES      → PASS / FAIL  (Parser resources trigger WAF?)
+
+PASS = that exclusion fixed it, we found the trigger
+```
+
 #### Quick Test Script
 
 ```bash
