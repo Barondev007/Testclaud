@@ -290,6 +290,39 @@ Any FAIL = that dependency triggers WAF
 **Step 3: Fix the problematic dependency**
 - Once identified, we can add specific class exclusions for that dependency
 
+#### Phase 3: Incremental Combinations (when all ONLY-* pass)
+
+If all individual dependencies pass but the full JAR fails, the issue is a combination of dependencies or transitive deps.
+
+```bash
+mvn clean package -Pwaf-test-combo-1 -DskipTests
+mvn clean package -Pwaf-test-combo-2 -DskipTests
+mvn clean package -Pwaf-test-combo-3 -DskipTests
+mvn clean package -Pwaf-test-combo-4 -DskipTests
+mvn clean package -Pwaf-test-combo-5 -DskipTests
+```
+
+**Phase 3 - Incremental combinations:**
+
+| Profile | JAR Name | What's Included |
+|---------|----------|-----------------|
+| `waf-test-combo-1` | `openapivalidator-COMBO1-SNAKE-NET.jar` | SnakeYAML + Networknt |
+| `waf-test-combo-2` | `openapivalidator-COMBO2-SNAKE-NET-CORE.jar` | + Swagger Core |
+| `waf-test-combo-3` | `openapivalidator-COMBO3-SNAKE-NET-CORE-PARSER.jar` | + Swagger Parser |
+| `waf-test-combo-4` | `openapivalidator-COMBO4-ALL.jar` | + Atlassian (all deps) |
+| `waf-test-combo-5` | `openapivalidator-COMBO5-ATLASSIAN-PARSER.jar` | Atlassian + Parser only |
+
+**Testing Procedure:**
+```
+COMBO1 (Snake+Net)           → PASS / FAIL
+COMBO2 (Snake+Net+Core)      → PASS / FAIL
+COMBO3 (Snake+Net+Core+Parser) → PASS / FAIL
+COMBO4 (All deps)            → PASS / FAIL
+COMBO5 (Atlassian+Parser)    → PASS / FAIL
+
+First FAIL = that combination brings problematic transitive dependencies
+```
+
 #### Quick Test Script
 
 ```bash
