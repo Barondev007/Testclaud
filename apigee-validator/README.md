@@ -12,12 +12,22 @@ This module provides OpenAPI request/response validation optimized for Google Ap
 
 ## Building
 
+### Standard Build
 ```bash
 cd apigee-validator
-mvn clean package
+mvn clean package -DskipTests
 ```
 
-This creates: `target/openapi-validator-apigee-1.0.0.jar`
+### WAF-Safe Build (Recommended)
+If your environment has a Web Application Firewall (WAF), use this profile:
+```bash
+cd apigee-validator
+mvn clean package -Pwaf-safe -DskipTests
+```
+
+This creates: `target/openapivalidator-WAF-SAFE.jar`
+
+**Root cause**: Embedded resources (JSON, YAML, XML, properties files) in dependencies trigger WAF rules. The `waf-safe` profile includes only `.class` files, excluding all embedded resources.
 
 ## Uploading to Apigee
 
