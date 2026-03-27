@@ -221,10 +221,9 @@ Example exclusion in pom.xml:
 
 Use these Maven profiles to build different JAR versions, each excluding specific dependencies. Deploy each one to identify which dependency triggers the WAF.
 
-#### Build Commands
+#### Phase 1: Exclude One Dependency (identify if single dependency is the problem)
 
 ```bash
-# Build all test versions
 mvn clean package -Pwaf-test-minimal -DskipTests
 mvn clean package -Pwaf-test-no-snakeyaml -DskipTests
 mvn clean package -Pwaf-test-no-networknt -DskipTests
@@ -233,44 +232,77 @@ mvn clean package -Pwaf-test-no-swagger-core -DskipTests
 mvn clean package -Pwaf-test-no-atlassian -DskipTests
 ```
 
+#### Phase 2: Add One Dependency (when MINIMAL passes but others fail)
+
+```bash
+mvn clean package -Pwaf-test-only-snakeyaml -DskipTests
+mvn clean package -Pwaf-test-only-networknt -DskipTests
+mvn clean package -Pwaf-test-only-swagger-parser -DskipTests
+mvn clean package -Pwaf-test-only-swagger-core -DskipTests
+mvn clean package -Pwaf-test-only-atlassian -DskipTests
+```
+
 #### Test JARs Generated
+
+**Phase 1 - Exclude one:**
 
 | Profile | JAR Name | What's Excluded |
 |---------|----------|-----------------|
 | `waf-test-minimal` | `openapivalidator-MINIMAL.jar` | All dependencies (only your code) |
-| `waf-test-no-snakeyaml` | `openapivalidator-NO-SNAKEYAML.jar` | SnakeYAML (YAML parsing) |
-| `waf-test-no-networknt` | `openapivalidator-NO-NETWORKNT.jar` | Networknt JSON Schema Validator |
+| `waf-test-no-snakeyaml` | `openapivalidator-NO-SNAKEYAML.jar` | SnakeYAML |
+| `waf-test-no-networknt` | `openapivalidator-NO-NETWORKNT.jar` | Networknt JSON Schema |
 | `waf-test-no-swagger-parser` | `openapivalidator-NO-SWAGGER-PARSER.jar` | Swagger Parser v3 |
 | `waf-test-no-swagger-core` | `openapivalidator-NO-SWAGGER-CORE.jar` | Swagger Core v3 |
-| `waf-test-no-atlassian` | `openapivalidator-NO-ATLASSIAN.jar` | Atlassian Validator Core |
+| `waf-test-no-atlassian` | `openapivalidator-NO-ATLASSIAN.jar` | Atlassian Validator |
+
+**Phase 2 - Include only one:**
+
+| Profile | JAR Name | What's Included |
+|---------|----------|-----------------|
+| `waf-test-only-snakeyaml` | `openapivalidator-ONLY-SNAKEYAML.jar` | Your code + SnakeYAML only |
+| `waf-test-only-networknt` | `openapivalidator-ONLY-NETWORKNT.jar` | Your code + Networknt only |
+| `waf-test-only-swagger-parser` | `openapivalidator-ONLY-SWAGGER-PARSER.jar` | Your code + Swagger Parser only |
+| `waf-test-only-swagger-core` | `openapivalidator-ONLY-SWAGGER-CORE.jar` | Your code + Swagger Core only |
+| `waf-test-only-atlassian` | `openapivalidator-ONLY-ATLASSIAN.jar` | Your code + Atlassian only |
 
 #### Testing Procedure
 
-1. **Start with MINIMAL** - deploy `openapivalidator-MINIMAL.jar`
-   - If blocked: WAF triggers on your own code
-   - If passes: Continue testing
+**Step 1: Test MINIMAL**
+```
+Deploy openapivalidator-MINIMAL.jar
+├── BLOCKED → Your code triggers WAF (unlikely)
+└── PASSES → Continue to Step 2
+```
 
-2. **Test each profile** - deploy each JAR one by one
-   - Track which ones pass and which ones fail
+**Step 2: Test ONLY-* profiles (add one dependency at a time)**
+```
+Deploy each ONLY-*.jar and record results:
 
-3. **Identify the culprit** - the dependency in the blocked JAR is the trigger
+openapivalidator-ONLY-SNAKEYAML.jar     → PASS / FAIL
+openapivalidator-ONLY-NETWORKNT.jar     → PASS / FAIL
+openapivalidator-ONLY-SWAGGER-PARSER.jar → PASS / FAIL
+openapivalidator-ONLY-SWAGGER-CORE.jar  → PASS / FAIL
+openapivalidator-ONLY-ATLASSIAN.jar     → PASS / FAIL
 
-4. **Binary search** - if multiple fail, combine exclusions to narrow down
+Any FAIL = that dependency triggers WAF
+```
+
+**Step 3: Fix the problematic dependency**
+- Once identified, we can add specific class exclusions for that dependency
 
 #### Quick Test Script
 
 ```bash
 #!/bin/bash
-# Build all WAF test JARs
+# Build all WAF test JARs - Phase 2 (ONLY-* profiles)
 cd apigee-validator
 
 profiles=(
-    "waf-test-minimal"
-    "waf-test-no-snakeyaml"
-    "waf-test-no-networknt"
-    "waf-test-no-swagger-parser"
-    "waf-test-no-swagger-core"
-    "waf-test-no-atlassian"
+    "waf-test-only-snakeyaml"
+    "waf-test-only-networknt"
+    "waf-test-only-swagger-parser"
+    "waf-test-only-swagger-core"
+    "waf-test-only-atlassian"
 )
 
 for profile in "${profiles[@]}"; do
