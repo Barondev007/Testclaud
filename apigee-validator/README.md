@@ -216,3 +216,69 @@ Example exclusion in pom.xml:
     </excludes>
 </filter>
 ```
+
+### WAF Testing Profiles
+
+Use these Maven profiles to build different JAR versions, each excluding specific dependencies. Deploy each one to identify which dependency triggers the WAF.
+
+#### Build Commands
+
+```bash
+# Build all test versions
+mvn clean package -Pwaf-test-minimal -DskipTests
+mvn clean package -Pwaf-test-no-snakeyaml -DskipTests
+mvn clean package -Pwaf-test-no-networknt -DskipTests
+mvn clean package -Pwaf-test-no-swagger-parser -DskipTests
+mvn clean package -Pwaf-test-no-swagger-core -DskipTests
+mvn clean package -Pwaf-test-no-atlassian -DskipTests
+```
+
+#### Test JARs Generated
+
+| Profile | JAR Name | What's Excluded |
+|---------|----------|-----------------|
+| `waf-test-minimal` | `openapivalidator-MINIMAL.jar` | All dependencies (only your code) |
+| `waf-test-no-snakeyaml` | `openapivalidator-NO-SNAKEYAML.jar` | SnakeYAML (YAML parsing) |
+| `waf-test-no-networknt` | `openapivalidator-NO-NETWORKNT.jar` | Networknt JSON Schema Validator |
+| `waf-test-no-swagger-parser` | `openapivalidator-NO-SWAGGER-PARSER.jar` | Swagger Parser v3 |
+| `waf-test-no-swagger-core` | `openapivalidator-NO-SWAGGER-CORE.jar` | Swagger Core v3 |
+| `waf-test-no-atlassian` | `openapivalidator-NO-ATLASSIAN.jar` | Atlassian Validator Core |
+
+#### Testing Procedure
+
+1. **Start with MINIMAL** - deploy `openapivalidator-MINIMAL.jar`
+   - If blocked: WAF triggers on your own code
+   - If passes: Continue testing
+
+2. **Test each profile** - deploy each JAR one by one
+   - Track which ones pass and which ones fail
+
+3. **Identify the culprit** - the dependency in the blocked JAR is the trigger
+
+4. **Binary search** - if multiple fail, combine exclusions to narrow down
+
+#### Quick Test Script
+
+```bash
+#!/bin/bash
+# Build all WAF test JARs
+cd apigee-validator
+
+profiles=(
+    "waf-test-minimal"
+    "waf-test-no-snakeyaml"
+    "waf-test-no-networknt"
+    "waf-test-no-swagger-parser"
+    "waf-test-no-swagger-core"
+    "waf-test-no-atlassian"
+)
+
+for profile in "${profiles[@]}"; do
+    echo "Building $profile..."
+    mvn clean package -P$profile -DskipTests -q
+done
+
+echo ""
+echo "Generated JARs:"
+ls -lh target/*.jar
+```
