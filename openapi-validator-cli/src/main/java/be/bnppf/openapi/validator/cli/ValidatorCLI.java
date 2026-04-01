@@ -341,7 +341,11 @@ public class ValidatorCLI {
 
         ValidationLevel level = ValidationLevel.fromString(levelStr);
 
-        printHeader("OpenAPI Request Validation");
+        // Determine what we're validating
+        boolean hasRequestData = body != null || requestFile != null;
+        boolean responseOnly = responseFile != null && !hasRequestData;
+
+        printHeader(responseOnly ? "OpenAPI Response Validation" : "OpenAPI Request Validation");
         printDetail("Specification", specFile);
         printDetail("Validation Level", level.toString());
         printDetail("Method", colorizeMethod(method));
@@ -376,16 +380,21 @@ public class ValidatorCLI {
         // Add Content-Type header
         addToMultiMap(headers, "Content-Type", contentType);
 
-        // Validate request using OpenApiValidator with standard Java types
-        System.out.println(colorize("  " + SYM_CIRCLE + " Validating request...", ANSI_WHITE));
-        ValidationResult result = validator.validateRequest(body, method, path, queryParams, headers);
+        // Only validate request if we have request data or no response file
+        if (!responseOnly) {
+            // Validate request using OpenApiValidator with standard Java types
+            System.out.println(colorize("  " + SYM_CIRCLE + " Validating request...", ANSI_WHITE));
+            ValidationResult result = validator.validateRequest(body, method, path, queryParams, headers);
 
-        printValidationResult(result, "Request");
+            printValidationResult(result, "Request");
+        }
 
         // Validate response if provided
         if (responseFile != null) {
-            System.out.println();
-            printSubHeader("Response Validation");
+            if (!responseOnly) {
+                System.out.println();
+                printSubHeader("Response Validation");
+            }
 
             String responseBody;
             String responseContentType = contentType;
