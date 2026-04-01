@@ -530,9 +530,10 @@ public class ValidatorCLI {
             Map<String, Object> data = mapper.readValue(content, Map.class);
 
             // Check if this looks like a structured response file
-            // (has status, statusCode, body, or headers keys)
+            // (has status, statusCode, body, headers, method, or path keys)
             if (data.containsKey("status") || data.containsKey("statusCode") ||
-                data.containsKey("body") || data.containsKey("headers")) {
+                data.containsKey("body") || data.containsKey("headers") ||
+                data.containsKey("method") || data.containsKey("path")) {
                 return data;
             }
 
