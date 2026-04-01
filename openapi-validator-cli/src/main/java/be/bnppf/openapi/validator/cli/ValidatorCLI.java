@@ -313,6 +313,23 @@ public class ValidatorCLI {
             }
         }
 
+        // Load method/path from response file if not already set
+        if (responseFile != null && (method == null || path == null)) {
+            try {
+                Map<String, Object> responseData = loadResponseFile(responseFile);
+                if (responseData != null) {
+                    if (method == null && responseData.containsKey("method")) {
+                        method = ((String) responseData.get("method")).toUpperCase();
+                    }
+                    if (path == null && responseData.containsKey("path")) {
+                        path = (String) responseData.get("path");
+                    }
+                }
+            } catch (IOException e) {
+                // Will be handled later when validating response
+            }
+        }
+
         // Check required fields
         if (method == null || path == null) {
             printError("Missing required fields: --method and --path are required");
