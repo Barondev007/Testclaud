@@ -367,20 +367,61 @@ public class ValidatorCLI {
         if (responseFile != null) {
             System.out.println();
             printSubHeader("Response Validation");
+
+            String responseBody;
+            String responseContentType = contentType;
+            int responseStatusCode = statusCode;
+            Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
+
+            // Try to load as structured file (like request file)
+            Map<String, Object> responseData = loadResponseFile(responseFile);
+            if (responseData != null) {
+                // Structured response file with body, status, headers
+                if (responseData.containsKey("body")) {
+                    Object bodyObj = responseData.get("body");
+                    if (bodyObj instanceof String) {
+                        responseBody = (String) bodyObj;
+                    } else {
+                        responseBody = new ObjectMapper().writeValueAsString(bodyObj);
+                    }
+                } else {
+                    responseBody = "";
+                }
+                if (responseData.containsKey("status")) {
+                    responseStatusCode = ((Number) responseData.get("status")).intValue();
+                }
+                if (responseData.containsKey("statusCode")) {
+                    responseStatusCode = ((Number) responseData.get("statusCode")).intValue();
+                }
+                if (responseData.containsKey("contentType")) {
+                    responseContentType = (String) responseData.get("contentType");
+                }
+                if (responseData.containsKey("headers")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> respHeaders = (Map<String, Object>) responseData.get("headers");
+                    for (Map.Entry<String, Object> entry : respHeaders.entrySet()) {
+                        addToMultiMap(responseHeaders, entry.getKey(), String.valueOf(entry.getValue()));
+                    }
+                }
+            } else {
+                // Plain body file - read as-is
+                responseBody = new String(Files.readAllBytes(Paths.get(responseFile)), StandardCharsets.UTF_8);
+            }
+
+            // Add Content-Type header if not already set
+            if (!responseHeaders.containsKey("Content-Type")) {
+                addToMultiMap(responseHeaders, "Content-Type", responseContentType);
+            }
+
             printDetail("Response File", responseFile);
-            printDetail("Status Code", String.valueOf(statusCode));
+            printDetail("Status Code", String.valueOf(responseStatusCode));
+            printDetail("Content-Type", responseContentType);
             System.out.println();
 
             System.out.println(colorize("  " + SYM_CIRCLE + " Validating response...", ANSI_WHITE));
 
-            String responseBody = new String(Files.readAllBytes(Paths.get(responseFile)), StandardCharsets.UTF_8);
-
-            // Build response headers
-            Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
-            addToMultiMap(responseHeaders, "Content-Type", contentType);
-
             ValidationResult responseResult = validator.validateResponse(
-                responseBody, method, path, statusCode, responseHeaders);
+                responseBody, method, path, responseStatusCode, responseHeaders);
 
             printValidationResult(responseResult, "Response");
         }
@@ -442,6 +483,49 @@ public class ValidatorCLI {
         }
 
         return data;
+    }
+
+    /**
+     * Load response from JSON/YAML file.
+     * Supports two formats:
+     * 1. Structured: { "status": 200, "body": {...}, "headers": {...} }
+     * 2. Plain body: just the response body content
+     *
+     * Returns null if the file is plain body (not structured).
+     */
+    private static Map<String, Object> loadResponseFile(String filePath) throws IOException {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            throw new IOException("Response file not found: " + filePath);
+        }
+
+        String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+        ObjectMapper mapper;
+
+        if (filePath.endsWith(".yaml") || filePath.endsWith(".yml")) {
+            mapper = new ObjectMapper(new YAMLFactory());
+        } else {
+            mapper = new ObjectMapper();
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = mapper.readValue(content, Map.class);
+
+            // Check if this looks like a structured response file
+            // (has status, statusCode, body, or headers keys)
+            if (data.containsKey("status") || data.containsKey("statusCode") ||
+                data.containsKey("body") || data.containsKey("headers")) {
+                return data;
+            }
+
+            // Not a structured file, return null to indicate plain body
+            return null;
+
+        } catch (Exception e) {
+            // If parsing fails, treat as plain body file
+            return null;
+        }
     }
 
     /**
