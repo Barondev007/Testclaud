@@ -231,6 +231,8 @@ public class ValidatorCLI {
                     requestFile = args[++i];
                     break;
                 case "--response":
+                case "--response-file":
+                case "-R":
                     responseFile = args[++i];
                     break;
                 case "--method":
@@ -852,7 +854,7 @@ public class ValidatorCLI {
         printValidateOption("--body, -b", "<json>", "Request body as JSON string");
         printValidateOption("--body-file", "<file>", "Request body from file");
         printValidateOption("--request, -r", "<file>", "Load request from JSON/YAML file");
-        printValidateOption("--response", "<file>", "Response body file to validate");
+        printValidateOption("--response, -R", "<file>", "Response file (can include method, path, status, body)");
         printValidateOption("--status", "<code>", "Response status code (default: 200)");
         printValidateOption("--header, -H", "<h:v>", "Add header (repeatable)");
         printValidateOption("--query, -q", "<k=v>", "Add query parameter (repeatable)");
