@@ -3,21 +3,6 @@
   <DisplayName>KVM-ReadSignConfig</DisplayName>
   <Scope>environment</Scope>
   <ExpiryTimeInSecs>300</ExpiryTimeInSecs>
-  <Get assignTo="kvm.sign.idp.token.path" index="1">
-    <Key><Parameter>idp.token.path</Parameter></Key>
-  </Get>
-  <Get assignTo="kvm.sign.idp.client.id" index="1">
-    <Key><Parameter>idp.client.id</Parameter></Key>
-  </Get>
-  <Get assignTo="kvm.sign.idp.client.secret" index="1">
-    <Key><Parameter>idp.client.secret</Parameter></Key>
-  </Get>
-  <Get assignTo="kvm.sign.idp.scope" index="1">
-    <Key><Parameter>idp.scope</Parameter></Key>
-  </Get>
-  <Get assignTo="kvm.sign.idp.token.cache.ttl.secs" index="1">
-    <Key><Parameter>idp.token.cache.ttl.secs</Parameter></Key>
-  </Get>
   <Get assignTo="kvm.sign.svc.path.sign" index="1">
     <Key><Parameter>signature.service.path.sign</Parameter></Key>
   </Get>

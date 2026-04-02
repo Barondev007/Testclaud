@@ -1,17 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<SharedFlowBundle revision="1" name="api-sign-validate">
-  <DisplayName>API Sign Validate</DisplayName>
+<SharedFlowBundle revision="1" name="api-sign-request">
+  <DisplayName>API Sign Request</DisplayName>
   <Description>Shared flow for API request signing and signature validation</Description>
   <Policies>
     <Policy>KVM-ReadSignConfig</Policy>
     <Policy>AM-SetKvmLoaded</Policy>
-    <Policy>LookupCache-AccessToken</Policy>
-    <Policy>AM-BuildTokenRequest</Policy>
-    <Policy>SC-FetchToken</Policy>
-    <Policy>EV-ExtractToken</Policy>
-    <Policy>PopulateCache-AccessToken</Policy>
-    <Policy>AM-SetAccessToken</Policy>
-    <Policy>RF-TokenFetchFailed</Policy>
     <Policy>JS-BuildSigningString</Policy>
     <Policy>AM-BuildSignRequest</Policy>
     <Policy>SC-CallSignService</Policy>
@@ -32,7 +25,6 @@
     <Resource>jsc://lib/canonicalize.js</Resource>
   </Resources>
   <SharedFlows>
-    <SharedFlow>hook-fetch-token</SharedFlow>
     <SharedFlow>hook-sign-request</SharedFlow>
     <SharedFlow>hook-validate-request</SharedFlow>
   </SharedFlows>

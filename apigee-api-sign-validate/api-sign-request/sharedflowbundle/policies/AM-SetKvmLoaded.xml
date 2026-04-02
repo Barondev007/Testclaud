@@ -2,7 +2,7 @@
 <AssignMessage async="false" continueOnError="false" enabled="true" name="AM-SetKvmLoaded">
   <DisplayName>AM-SetKvmLoaded</DisplayName>
   <AssignVariable>
-    <Name>kvm.sign.loaded</Name>
+    <Name>kvm.sign.request.loaded</Name>
     <Value>true</Value>
   </AssignVariable>
 </AssignMessage>

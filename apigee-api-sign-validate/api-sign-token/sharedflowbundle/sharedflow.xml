@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<SharedFlowBundle revision="1" name="api-sign-token">
+  <DisplayName>API Sign Token</DisplayName>
+  <Description>Shared flow for acquiring and caching OAuth tokens from the IDP via mTLS</Description>
+  <Policies>
+    <Policy>KVM-ReadSignConfig</Policy>
+    <Policy>AM-SetKvmLoaded</Policy>
+    <Policy>LookupCache-AccessToken</Policy>
+    <Policy>AM-BuildTokenRequest</Policy>
+    <Policy>SC-FetchToken</Policy>
+    <Policy>EV-ExtractToken</Policy>
+    <Policy>PopulateCache-AccessToken</Policy>
+    <Policy>AM-SetAccessToken</Policy>
+    <Policy>RF-TokenFetchFailed</Policy>
+  </Policies>
+  <Resources/>
+  <SharedFlows>
+    <SharedFlow>default</SharedFlow>
+  </SharedFlows>
+</SharedFlowBundle>
