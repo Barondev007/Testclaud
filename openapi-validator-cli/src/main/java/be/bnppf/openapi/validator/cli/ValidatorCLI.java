@@ -473,8 +473,18 @@ public class ValidatorCLI {
 
         String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
 
+        // Detect if content is YAML (by extension or by content)
+        boolean isYaml = filePath.endsWith(".yaml") || filePath.endsWith(".yml");
+
+        // Also detect YAML by content if not already identified
+        if (!isYaml) {
+            String trimmed = content.trim();
+            // YAML typically starts with key: or ---, JSON starts with { or [
+            isYaml = !trimmed.startsWith("{") && !trimmed.startsWith("[");
+        }
+
         // If YAML, convert to JSON for consistent processing
-        if (filePath.endsWith(".yaml") || filePath.endsWith(".yml")) {
+        if (isYaml) {
             ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
             ObjectMapper jsonWriter = new ObjectMapper();
             Object obj = yamlReader.readValue(content, Object.class);
