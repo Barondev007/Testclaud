@@ -540,7 +540,14 @@ public class ValidatorCLI {
         String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
         ObjectMapper mapper;
 
-        if (filePath.endsWith(".yaml") || filePath.endsWith(".yml")) {
+        // Detect YAML by extension or content
+        boolean isYaml = filePath.endsWith(".yaml") || filePath.endsWith(".yml");
+        if (!isYaml) {
+            String trimmed = content.trim();
+            isYaml = !trimmed.startsWith("{") && !trimmed.startsWith("[");
+        }
+
+        if (isYaml) {
             mapper = new ObjectMapper(new YAMLFactory());
         } else {
             mapper = new ObjectMapper();
@@ -549,6 +556,18 @@ public class ValidatorCLI {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> data = mapper.readValue(content, Map.class);
+
+            // Check if wrapped in "data" key
+            if (data.containsKey("data") && data.get("data") instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> innerData = (Map<String, Object>) data.get("data");
+                // Use inner data if it looks like a structured response
+                if (innerData.containsKey("status") || innerData.containsKey("statusCode") ||
+                    innerData.containsKey("body") || innerData.containsKey("headers") ||
+                    innerData.containsKey("method") || innerData.containsKey("path")) {
+                    return innerData;
+                }
+            }
 
             // Check if this looks like a structured response file
             // (has status, statusCode, body, headers, method, or path keys)
