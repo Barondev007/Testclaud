@@ -403,6 +403,12 @@ public class ValidatorCLI {
 
             // Try to load as structured file (like request file)
             Map<String, Object> responseData = loadResponseFile(responseFile);
+            if (verbose) {
+                printDetail("Response Data", responseData != null ? "Structured file detected" : "Plain body file");
+                if (responseData != null) {
+                    printDetail("Keys found", String.join(", ", responseData.keySet()));
+                }
+            }
             if (responseData != null) {
                 // Structured response file with body, status, headers
                 if (responseData.containsKey("body")) {
@@ -444,6 +450,14 @@ public class ValidatorCLI {
             printDetail("Response File", responseFile);
             printDetail("Status Code", String.valueOf(responseStatusCode));
             printDetail("Content-Type", responseContentType);
+            if (!responseHeaders.isEmpty()) {
+                printDetail("Response Headers", String.valueOf(responseHeaders.size()) + " header(s)");
+                if (verbose) {
+                    for (Map.Entry<String, List<String>> entry : responseHeaders.entrySet()) {
+                        printDetail("  " + entry.getKey(), String.join(", ", entry.getValue()));
+                    }
+                }
+            }
             System.out.println();
 
             System.out.println(colorize("  " + SYM_CIRCLE + " Validating response...", ANSI_WHITE));
