@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-SetAccessToken">
+  <DisplayName>AM-SetAccessToken</DisplayName>
+  <AssignVariable>
+    <Name>sign.accessToken</Name>
+    <Ref>sign.cachedAccessToken</Ref>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>sign.accessToken</Name>
+    <Ref>sign.freshAccessToken</Ref>
+    <Condition>sign.cachedAccessToken = null</Condition>
+  </AssignVariable>
+</AssignMessage>

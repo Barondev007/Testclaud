@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-SetKvmLoaded">
+  <DisplayName>AM-SetKvmLoaded</DisplayName>
+  <AssignVariable>
+    <Name>kvm.sign.loaded</Name>
+    <Value>true</Value>
+  </AssignVariable>
+</AssignMessage>

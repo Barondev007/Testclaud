@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<SharedFlowBundle revision="1" name="api-sign-validate">
+  <DisplayName>API Sign Validate</DisplayName>
+  <Description>Shared flow for API request signing and signature validation</Description>
+  <Policies>
+    <Policy>KVM-ReadSignConfig</Policy>
+    <Policy>AM-SetKvmLoaded</Policy>
+    <Policy>LookupCache-AccessToken</Policy>
+    <Policy>AM-BuildTokenRequest</Policy>
+    <Policy>SC-FetchToken</Policy>
+    <Policy>EV-ExtractToken</Policy>
+    <Policy>PopulateCache-AccessToken</Policy>
+    <Policy>AM-SetAccessToken</Policy>
+    <Policy>RF-TokenFetchFailed</Policy>
+    <Policy>JS-BuildSigningString</Policy>
+    <Policy>AM-BuildSignRequest</Policy>
+    <Policy>SC-CallSignService</Policy>
+    <Policy>EV-ExtractSignature</Policy>
+    <Policy>AM-AttachSignature</Policy>
+    <Policy>RF-SignFailed</Policy>
+    <Policy>JS-ExtractIncomingSignature</Policy>
+    <Policy>JS-BuildValidateDigest</Policy>
+    <Policy>AM-BuildValidateRequest</Policy>
+    <Policy>SC-CallValidateService</Policy>
+    <Policy>EV-ExtractValidationResult</Policy>
+    <Policy>RF-ValidationFailed</Policy>
+  </Policies>
+  <Resources>
+    <Resource>jsc://buildSigningString.js</Resource>
+    <Resource>jsc://extractIncomingSignature.js</Resource>
+    <Resource>jsc://buildValidateDigest.js</Resource>
+    <Resource>jsc://lib/canonicalize.js</Resource>
+  </Resources>
+  <SharedFlows>
+    <SharedFlow>hook-fetch-token</SharedFlow>
+    <SharedFlow>hook-sign-request</SharedFlow>
+    <SharedFlow>hook-validate-request</SharedFlow>
+  </SharedFlows>
+</SharedFlowBundle>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<LookupCache async="false" continueOnError="false" enabled="true" name="LookupCache-AccessToken">
+  <DisplayName>LookupCache-AccessToken</DisplayName>
+  <CacheKey>
+    <Prefix>sign-token</Prefix>
+    <KeyFragment ref="kvm.sign.idp.client.id"/>
+  </CacheKey>
+  <CacheResource>sign-token-cache</CacheResource>
+  <AssignTo>sign.cachedAccessToken</AssignTo>
+</LookupCache>

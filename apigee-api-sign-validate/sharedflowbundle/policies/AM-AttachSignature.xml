@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-AttachSignature">
+  <DisplayName>AM-AttachSignature</DisplayName>
+  <Set>
+    <Headers>
+      <Header name="{kvm.sign.signature.header.name}">{sign.signature}</Header>
+    </Headers>
+  </Set>
+  <AssignTo>request</AssignTo>
+</AssignMessage>

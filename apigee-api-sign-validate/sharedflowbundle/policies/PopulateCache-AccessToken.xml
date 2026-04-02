@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PopulateCache async="false" continueOnError="false" enabled="true" name="PopulateCache-AccessToken">
+  <DisplayName>PopulateCache-AccessToken</DisplayName>
+  <CacheKey>
+    <Prefix>sign-token</Prefix>
+    <KeyFragment ref="kvm.sign.idp.client.id"/>
+  </CacheKey>
+  <CacheResource>sign-token-cache</CacheResource>
+  <Source>sign.freshAccessToken</Source>
+  <ExpirySettings>
+    <TimeoutInSec ref="kvm.sign.idp.token.cache.ttl.secs"/>
+  </ExpirySettings>
+</PopulateCache>

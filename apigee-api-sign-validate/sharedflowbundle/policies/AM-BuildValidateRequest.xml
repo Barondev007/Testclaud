@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-BuildValidateRequest">
+  <DisplayName>AM-BuildValidateRequest</DisplayName>
+  <Set>
+    <Verb>POST</Verb>
+    <Path>{kvm.sign.svc.path.validate}</Path>
+    <Headers>
+      <Header name="Authorization">Bearer {sign.accessToken}</Header>
+      <Header name="Content-Type">application/json</Header>
+    </Headers>
+    <Payload contentType="application/json">{"signature":"{sign.incomingSignature}","digest":"{sign.digest}","algorithm":"{sign.in.algorithm}","keyId":"{sign.in.keyId}"}</Payload>
+  </Set>
+  <AssignTo createNew="true" transport="http" type="request">validateRequest</AssignTo>
+</AssignMessage>

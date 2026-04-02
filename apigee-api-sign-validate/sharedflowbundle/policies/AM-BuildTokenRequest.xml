@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-BuildTokenRequest">
+  <DisplayName>AM-BuildTokenRequest</DisplayName>
+  <Set>
+    <Verb>POST</Verb>
+    <Path>{kvm.sign.idp.token.path}</Path>
+    <Headers>
+      <Header name="Content-Type">application/x-www-form-urlencoded</Header>
+    </Headers>
+    <Payload>grant_type=client_credentials&amp;client_id={kvm.sign.idp.client.id}&amp;client_secret={kvm.sign.idp.client.secret}&amp;scope={kvm.sign.idp.scope}</Payload>
+  </Set>
+  <AssignTo createNew="true" transport="http" type="request">tokenRequest</AssignTo>
+</AssignMessage>

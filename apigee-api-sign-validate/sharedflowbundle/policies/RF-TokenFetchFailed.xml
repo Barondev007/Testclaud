@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault async="false" continueOnError="false" enabled="true" name="RF-TokenFetchFailed">
+  <DisplayName>RF-TokenFetchFailed</DisplayName>
+  <FaultResponse>
+    <Set>
+      <StatusCode>502</StatusCode>
+      <ReasonPhrase>Bad Gateway</ReasonPhrase>
+      <Headers>
+        <Header name="Content-Type">application/json</Header>
+      </Headers>
+      <Payload contentType="application/json">{"error":"TOKEN_FETCH_FAILED","message":"Unable to acquire access token from IDP"}</Payload>
+    </Set>
+  </FaultResponse>
+  <AssignVariable>
+    <Name>sign.error</Name>
+    <Value>TOKEN_FETCH_FAILED</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>sign.errorMessage</Name>
+    <Value>Unable to acquire access token from IDP</Value>
+  </AssignVariable>
+</RaiseFault>

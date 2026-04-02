@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault async="false" continueOnError="false" enabled="true" name="RF-ValidationFailed">
+  <DisplayName>RF-ValidationFailed</DisplayName>
+  <FaultResponse>
+    <Set>
+      <StatusCode>401</StatusCode>
+      <ReasonPhrase>Unauthorized</ReasonPhrase>
+      <Headers>
+        <Header name="Content-Type">application/json</Header>
+      </Headers>
+      <Payload contentType="application/json">{"error":"SIGNATURE_VALIDATION_FAILED","message":"Request signature validation failed"}</Payload>
+    </Set>
+  </FaultResponse>
+  <AssignVariable>
+    <Name>sign.error</Name>
+    <Value>SIGNATURE_VALIDATION_FAILED</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>sign.errorMessage</Name>
+    <Value>Request signature validation failed</Value>
+  </AssignVariable>
+</RaiseFault>

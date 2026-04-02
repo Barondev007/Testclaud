@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="false" enabled="true" name="AM-BuildSignRequest">
+  <DisplayName>AM-BuildSignRequest</DisplayName>
+  <Set>
+    <Verb>POST</Verb>
+    <Path>{kvm.sign.svc.path.sign}</Path>
+    <Headers>
+      <Header name="Authorization">Bearer {sign.accessToken}</Header>
+      <Header name="Content-Type">application/json</Header>
+    </Headers>
+    <Payload contentType="application/json">{"signingString":"{sign.signingString}","algorithm":"{sign.in.algorithm}","keyId":"{sign.in.keyId}"}</Payload>
+  </Set>
+  <AssignTo createNew="true" transport="http" type="request">signRequest</AssignTo>
+</AssignMessage>

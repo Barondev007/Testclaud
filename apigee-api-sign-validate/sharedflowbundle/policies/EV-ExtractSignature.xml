@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ExtractVariables async="false" continueOnError="false" enabled="true" name="EV-ExtractSignature">
+  <DisplayName>EV-ExtractSignature</DisplayName>
+  <Source>signResponse</Source>
+  <JSONPayload>
+    <Variable name="sign.signature" type="string">
+      <JSONPath>$.signature</JSONPath>
+    </Variable>
+  </JSONPayload>
+  <IgnoreUnresolvedVariables>false</IgnoreUnresolvedVariables>
+</ExtractVariables>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ExtractVariables async="false" continueOnError="false" enabled="true" name="EV-ExtractToken">
+  <DisplayName>EV-ExtractToken</DisplayName>
+  <Source>tokenResponse</Source>
+  <JSONPayload>
+    <Variable name="sign.freshAccessToken" type="string">
+      <JSONPath>$.access_token</JSONPath>
+    </Variable>
+  </JSONPayload>
+  <IgnoreUnresolvedVariables>false</IgnoreUnresolvedVariables>
+</ExtractVariables>
