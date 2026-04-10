@@ -25,6 +25,96 @@ public class YamlToJsonConverter {
     private static final YAMLMapper YAML_MAPPER = new YAMLMapper();
 
     /**
+     * Detect if content is JSON or YAML and return JSON.
+     * If the content is already JSON, returns it as-is (optionally pretty-printed).
+     * If the content is YAML, converts it to JSON.
+     *
+     * @param content the content to process (JSON or YAML)
+     * @return JSON string representation
+     * @throws IOException if parsing fails
+     */
+    public static String toJson(String content) throws IOException {
+        if (content == null || content.trim().isEmpty()) {
+            throw new IOException("Content is null or empty");
+        }
+
+        if (isJson(content)) {
+            // Already JSON, parse and pretty-print to ensure valid JSON
+            JsonNode node = JSON_MAPPER.readTree(content);
+            return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+        } else {
+            // Assume YAML, convert to JSON
+            return convert(content);
+        }
+    }
+
+    /**
+     * Detect if content is JSON or YAML and return JSON, with description fix for YAML.
+     * If the content is already JSON, returns it as-is.
+     * If the content is YAML, applies description fix and converts to JSON.
+     *
+     * @param content the content to process (JSON or YAML)
+     * @return JSON string representation
+     * @throws IOException if parsing fails
+     */
+    public static String toJsonWithDescriptionFix(String content) throws IOException {
+        if (content == null || content.trim().isEmpty()) {
+            throw new IOException("Content is null or empty");
+        }
+
+        if (isJson(content)) {
+            JsonNode node = JSON_MAPPER.readTree(content);
+            return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+        } else {
+            return convertWithDescriptionFix(content);
+        }
+    }
+
+    /**
+     * Detect if content is JSON or YAML and return as JsonNode.
+     *
+     * @param content the content to process (JSON or YAML)
+     * @return JsonNode representation
+     * @throws IOException if parsing fails
+     */
+    public static JsonNode toJsonNode(String content) throws IOException {
+        if (content == null || content.trim().isEmpty()) {
+            throw new IOException("Content is null or empty");
+        }
+
+        if (isJson(content)) {
+            return JSON_MAPPER.readTree(content);
+        } else {
+            return YAML_MAPPER.readTree(content);
+        }
+    }
+
+    /**
+     * Detect if the content is JSON format.
+     * Checks if the trimmed content starts with '{' or '[' (JSON object or array).
+     *
+     * @param content the content to check
+     * @return true if content appears to be JSON, false if likely YAML
+     */
+    public static boolean isJson(String content) {
+        if (content == null) {
+            return false;
+        }
+        String trimmed = content.trim();
+        return trimmed.startsWith("{") || trimmed.startsWith("[");
+    }
+
+    /**
+     * Detect if the content is YAML format.
+     *
+     * @param content the content to check
+     * @return true if content appears to be YAML, false if likely JSON
+     */
+    public static boolean isYaml(String content) {
+        return !isJson(content);
+    }
+
+    /**
      * Convert YAML string to JSON string using Jackson.
      *
      * @param yamlContent the YAML content to convert
