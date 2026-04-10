@@ -258,6 +258,110 @@ public class YamlToJsonConverter {
     }
 
     /**
+     * Remove all description blocks from YAML content.
+     * Handles both inline descriptions and multi-line block scalars (| or >).
+     *
+     * @param yaml the YAML content to process
+     * @return YAML content with all description fields removed
+     */
+    public static String removeDescriptions(String yaml) {
+        if (yaml == null) {
+            return null;
+        }
+
+        StringBuilder result = new StringBuilder();
+        String[] lines = yaml.split("\n");
+        boolean inDescriptionBlock = false;
+        int descriptionIndent = 0;
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            String trimmed = line.trim();
+
+            // Check if this line starts a description field
+            if (trimmed.startsWith("description:")) {
+                int currentIndent = line.indexOf("description:");
+
+                // Check if it's a multi-line block scalar (| or >)
+                String afterColon = trimmed.substring("description:".length()).trim();
+                if (afterColon.isEmpty() || afterColon.equals("|") || afterColon.equals(">")
+                    || afterColon.equals("|-") || afterColon.equals(">-")) {
+                    // Multi-line description block starts
+                    inDescriptionBlock = true;
+                    descriptionIndent = currentIndent;
+                }
+                // Skip this line (inline or block scalar indicator)
+                continue;
+            }
+
+            // If we're in a description block, check if we should exit
+            if (inDescriptionBlock) {
+                // Empty lines are part of the block
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+
+                // Calculate current line's indentation
+                int currentIndent = 0;
+                for (char c : line.toCharArray()) {
+                    if (c == ' ') currentIndent++;
+                    else if (c == '\t') currentIndent += 2;
+                    else break;
+                }
+
+                // If line is indented more than the description key, it's part of the block
+                if (currentIndent > descriptionIndent) {
+                    continue;
+                }
+
+                // Otherwise, we've exited the description block
+                inDescriptionBlock = false;
+            }
+
+            result.append(line).append("\n");
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * Detect if content is JSON or YAML and return JSON, removing descriptions from YAML.
+     * If the content is already JSON, returns it as-is.
+     * If the content is YAML, removes all description blocks and converts to JSON.
+     *
+     * @param content the content to process (JSON or YAML)
+     * @return JSON string representation without descriptions
+     * @throws IOException if parsing fails
+     */
+    public static String toJsonWithoutDescriptions(String content) throws IOException {
+        if (content == null || content.trim().isEmpty()) {
+            throw new IOException("Content is null or empty");
+        }
+
+        if (isJson(content)) {
+            // For JSON, remove description fields from the parsed tree
+            JsonNode node = JSON_MAPPER.readTree(content);
+            return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+        } else {
+            // For YAML, remove description blocks then convert
+            String withoutDescriptions = removeDescriptions(content);
+            return convert(withoutDescriptions);
+        }
+    }
+
+    /**
+     * Convert YAML to JSON after removing all description blocks.
+     *
+     * @param yamlContent the YAML content to convert
+     * @return JSON string representation without descriptions
+     * @throws IOException if parsing fails
+     */
+    public static String convertWithoutDescriptions(String yamlContent) throws IOException {
+        String withoutDescriptions = removeDescriptions(yamlContent);
+        return convert(withoutDescriptions);
+    }
+
+    /**
      * Full conversion with sanitization and description fix.
      * Use this method when dealing with potentially malformed YAML from external sources.
      *
