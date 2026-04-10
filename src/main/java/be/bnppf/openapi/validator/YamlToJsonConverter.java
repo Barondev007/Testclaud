@@ -259,7 +259,7 @@ public class YamlToJsonConverter {
 
     /**
      * Remove all description blocks from YAML content.
-     * Handles both inline descriptions and multi-line block scalars (| or >).
+     * Removes the description key and ALL content until the next YAML key at same or lower indentation.
      *
      * @param yaml the YAML content to process
      * @return YAML content with all description fields removed
@@ -270,58 +270,79 @@ public class YamlToJsonConverter {
         }
 
         StringBuilder result = new StringBuilder();
-        String[] lines = yaml.split("\n");
-        boolean inDescriptionBlock = false;
-        int descriptionIndent = 0;
+        String[] lines = yaml.split("\n", -1);
+        boolean skipping = false;
+        int descriptionIndent = -1;
 
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i];
+        for (String line : lines) {
+            int currentIndent = getIndentation(line);
             String trimmed = line.trim();
 
             // Check if this line starts a description field
             if (trimmed.startsWith("description:")) {
-                int currentIndent = line.indexOf("description:");
-
-                // Check if it's a multi-line block scalar (| or >)
-                String afterColon = trimmed.substring("description:".length()).trim();
-                if (afterColon.isEmpty() || afterColon.equals("|") || afterColon.equals(">")
-                    || afterColon.equals("|-") || afterColon.equals(">-")) {
-                    // Multi-line description block starts
-                    inDescriptionBlock = true;
-                    descriptionIndent = currentIndent;
-                }
-                // Skip this line (inline or block scalar indicator)
-                continue;
+                // Start skipping - record the indentation level of this description
+                skipping = true;
+                descriptionIndent = currentIndent;
+                continue; // Skip the description line itself
             }
 
-            // If we're in a description block, check if we should exit
-            if (inDescriptionBlock) {
-                // Empty lines are part of the block
+            // If we're skipping description content
+            if (skipping) {
+                // Empty line - keep skipping
                 if (trimmed.isEmpty()) {
                     continue;
                 }
 
-                // Calculate current line's indentation
-                int currentIndent = 0;
-                for (char c : line.toCharArray()) {
-                    if (c == ' ') currentIndent++;
-                    else if (c == '\t') currentIndent += 2;
-                    else break;
-                }
+                // Check if this line is a new YAML key at same or lower indentation level
+                // A YAML key is typically: word followed by colon (not inside the value)
+                boolean isNewKey = isYamlKey(trimmed) && currentIndent <= descriptionIndent;
 
-                // If line is indented more than the description key, it's part of the block
-                if (currentIndent > descriptionIndent) {
+                if (isNewKey) {
+                    // Stop skipping, this is a new section
+                    skipping = false;
+                    descriptionIndent = -1;
+                    // Fall through to add this line
+                } else {
+                    // Still part of description content, skip it
                     continue;
                 }
-
-                // Otherwise, we've exited the description block
-                inDescriptionBlock = false;
             }
 
             result.append(line).append("\n");
         }
 
+        // Remove trailing newline if original didn't have one
+        if (!yaml.endsWith("\n") && result.length() > 0) {
+            result.setLength(result.length() - 1);
+        }
+
         return result.toString();
+    }
+
+    /**
+     * Get the indentation level (number of leading spaces) of a line.
+     */
+    private static int getIndentation(String line) {
+        int indent = 0;
+        for (char c : line.toCharArray()) {
+            if (c == ' ') indent++;
+            else if (c == '\t') indent += 2;
+            else break;
+        }
+        return indent;
+    }
+
+    /**
+     * Check if a trimmed line appears to be a YAML key (word followed by colon).
+     */
+    private static boolean isYamlKey(String trimmed) {
+        if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+            return false;
+        }
+        // Match patterns like "key:", "key: value", "- key:", but not lines that are just values
+        // A key typically starts with a word character or dash (for list items)
+        return trimmed.matches("^-?\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*:.*")
+            || trimmed.matches("^[a-zA-Z_][a-zA-Z0-9_]*\\s*:.*");
     }
 
     /**
